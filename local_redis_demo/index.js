@@ -30,10 +30,20 @@ Object.values(mqttTopics).forEach((topic) => {
 });
 
 function onNewArticleMessage(message) {
-}
+}let wiki_1 = {}
+let wiki_1.path = '~/vimwiki/'
+let wiki_1.path_html = '~/vimwiki_html/'
+
+let wiki_2 = {}
+let wiki_2.path = '~/private/'
+let wiki_2.path_html = '~/private_html/'
+
+let g:vimwiki_list = [wiki_1, wiki_2]
+
 
 function onTimeUpMessage(message) {
 }
 
 function onBidMessage(message) {
 }
+// TODO: Weshalb Proxy verwenden? 
