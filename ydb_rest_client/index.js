@@ -1,4 +1,14 @@
+const express = require('express');
 const ydb = require('nodem').Ydb();
+
+const app = express();
+
+app.listen(4000);
+
+app.get('/', () => {
+  console.log("ydb service works great");
+  res.send('Hello World');
+});
 
 ydb_status = ydb.open(
   {
