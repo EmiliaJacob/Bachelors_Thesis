@@ -6,10 +6,12 @@ services:
       - 1883:1883
     volumes:
       - type: bind
-        source: ./mosquitto.conf
+        source: mosquitto/mosquitto.conf
         target: /mosquitto/config/mosquitto.conf
   db-mqtt-client:
     depends_on:
       - "mosquitto"
-    build: ../db_mqtt_client
+    build: db_mqtt_client
+  ydb-rest-client:
+    build: ydb_rest_client
 
