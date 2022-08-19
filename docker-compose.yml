@@ -12,6 +12,6 @@ services:
     depends_on:
       - "mosquitto"
     build: db_mqtt_client
-  ydb-rest-client:
-    build: ydb_rest_client
+  ydb-rest-service:
+    build: ydb_rest_service
 
