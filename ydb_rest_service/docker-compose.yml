@@ -1,5 +1,6 @@
 services:
   node:
     build: .
-    volumes:
-    - ./:/app
+    volumes: 
+      - /home/ubuntu/ydbay/ydb_rest_service:/app
+

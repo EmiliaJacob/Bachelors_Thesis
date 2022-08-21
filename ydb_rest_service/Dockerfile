@@ -14,7 +14,9 @@ WORKDIR /app
 
 COPY . .
 
-RUN . /opt/yottadb/current/ydb_env_set && npm install
+RUN . /opt/yottadb/current/ydb_env_set && npm install 
 
-ENTRYPOINT . /opt/yottadb/current/ydb_env_set && echo "source ~/nodem/resources/environ" >> ~/.profile && node index.js
+RUN npm install nodemon -g
+
+ENTRYPOINT . /opt/yottadb/current/ydb_env_set && echo "source ~/nodem/resources/environ" >> ~/.profile && nodemon index.js
 #ENTRYPOINT . /opt/yottadb/current/ydb_env_set && echo "source ~/nodem/resources/environ" >> ~/.profile && node index.js
