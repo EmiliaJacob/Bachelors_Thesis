@@ -17,3 +17,4 @@ COPY . .
 RUN . /opt/yottadb/current/ydb_env_set && npm install
 
 ENTRYPOINT . /opt/yottadb/current/ydb_env_set && echo "source ~/nodem/resources/environ" >> ~/.profile && node index.js
+#ENTRYPOINT . /opt/yottadb/current/ydb_env_set && echo "source ~/nodem/resources/environ" >> ~/.profile && node index.js

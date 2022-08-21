@@ -2,12 +2,24 @@ const express = require('express');
 const ydb = require('nodem').Ydb();
 
 const app = express();
+app.use(express.json());
 
 app.listen(4000);
 
-app.get('/', () => {
-  console.log("ydb service works great");
-  res.send('Hello World');
+app.post('/expired', (req, res) => {
+  if(!req.body.articleName){
+    res.status(400).send('wrong data');
+    return;
+  }
+  ydb.set({global: req.body.articleName, subscripts:['active'], data:0}, (error, result) => {
+    if(error){
+      res.status(500).send('ydb_error");
+      return;
+    }
+    res.status(200).send(result);
+  });
+  else
+    res.send('idk');
 });
 
 ydb_status = ydb.open(
