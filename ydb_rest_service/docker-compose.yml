@@ -2,5 +2,8 @@ services:
   node:
     build: .
     volumes: 
-      - /home/ubuntu/ydbay/ydb_rest_service:/app
+      - ./ydb-data:/data
+    ports:
+      - "4000:4000"
+
 
