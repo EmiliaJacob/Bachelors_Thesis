@@ -18,6 +18,6 @@ RUN . /opt/yottadb/current/ydb_env_set && npm install
 
 RUN npm install nodemon -g
 
-#CMD /usr/bin/bash
+CMD /usr/bin/bash
 #ENTRYPOINT /usr/bin/bash -c ". /opt/yottadb/current/ydb_env_set ; echo source ~/nodem/resources/environ"
-ENTRYPOINT . /opt/yottadb/current/ydb_env_set && echo "source ~/nodem/resources/environ" >> ~/.profile && nodemon --verbose index.js
+#ENTRYPOINT . /opt/yottadb/current/ydb_env_set && echo "source ~/nodem/resources/environ" >> ~/.profile && nodemon --verbose index.js
