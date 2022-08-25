@@ -1,6 +1,8 @@
 FROM yottadb/yottadb-base:latest
 
-ENV ydb_dist=/opt/yottadb/current
+SHELL ["/bin/bash", "-c"]
+
+#ENV ydb_dist=/opt/yottadb/current
 
 RUN apt-get update && apt-get install curl make g++ -y
 
@@ -10,14 +12,21 @@ RUN bash /tmp/nodesource_setup.sh
 
 RUN apt-get install nodejs -y
 
+RUN apt-get install mosquitto mosquitto-clients -y
+
 WORKDIR /app
 
-COPY . .
+COPY package.json . 
 
 RUN . /opt/yottadb/current/ydb_env_set && npm install 
 
-RUN npm install nodemon -g
+COPY . .
 
-CMD /usr/bin/bash
-#ENTRYPOINT /usr/bin/bash -c ". /opt/yottadb/current/ydb_env_set ; echo source ~/nodem/resources/environ"
-#ENTRYPOINT . /opt/yottadb/current/ydb_env_set && echo "source ~/nodem/resources/environ" >> ~/.profile && nodemon --verbose index.js
+ENTRYPOINT ./entryPoint.sh
+#RUN npm install nodemon -g
+
+#RUN . /opt/yottadb/current/ydb_env_set && mupip trigger -triggerfile=./ydb_triggers/test_trig.trig
+
+#CMD /usr/bin/bash
+
+#ENTRYPOINT . /opt/yottadb/current/ydb_env_set && source ~/nodem/resources/environ && node --verbose index.js& && ./fifoReadScript&

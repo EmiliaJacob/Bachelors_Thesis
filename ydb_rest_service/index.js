@@ -30,11 +30,36 @@ app.post('/expired', (req, res) => {
 
   ydb.set({global: req.body.articleName, subscripts:['active'], data:0}, (error, result) => {
     if(error){
-      res.status(500).send('ydb_error');
+      res.status(500).send(error);
       return;
     }
     res.status(200).send("successfully updated property");
   });
+});
+
+app.post('/set', (req, res) => {
+  reqGlobal = req.body.global;
+  reqData = req.body.data;
+  if(req.body.subscripts) {
+    reqSubscripts = req.body.subscripts;
+    ydb.set({global: reqGlobal, subscripts: reqSubscripts, data: reqData}, (error, result) => {
+      if(error){
+        res.status(500).send(error);
+        return;
+      }
+      res.status(200).send("successfully updated property");
+    });
+  }
+  else {
+    ydb.set({global: reqGlobal, data: reqData}, (error, result) => {
+      if(error){
+        res.status(500).send(error);
+        return;
+      }
+      res.status(200).send("successfully updated property");
+    });
+  }
+
 });
 
 ydb_status = ydb.open(

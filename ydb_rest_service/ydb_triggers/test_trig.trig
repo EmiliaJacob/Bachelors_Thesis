@@ -1,1 +1,0 @@
-+^test -commands=Set -xecute="do ^fwrite"
