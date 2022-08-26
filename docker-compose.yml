@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    ports:
+      - 1883:1883
+    volumes:
+      - type: bind
+        source: mosquitto/mosquitto.conf
+        target: /mosquitto/config/mosquitto.conf
+  db-mqtt-client:
+    depends_on:
+      - "mosquitto"
+    build: db_mqtt_client
+  ydb-rest-service:
+    depends_on:
+      - "mosquitto"
+    build: ydb_rest_service
+    volumes:
+      - ./ydb_rest_service/ydb-data:/data
+    ports: 
+      - "4000:4000"

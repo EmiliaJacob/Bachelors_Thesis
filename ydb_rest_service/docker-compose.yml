@@ -1,0 +1,10 @@
+services:
+  node:
+    build: .
+    volumes: 
+      - ./ydb-data:/data
+    ports:
+      - "4000:4000"
+  mosquitto:
+
+
