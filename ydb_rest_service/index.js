@@ -45,7 +45,7 @@ app.post('/set', (req, res) => {
         res.status(500).send(error);
         return;
       }
-      res.status(200).send(`set: ${reqGlobal}(${reqSubscripts})=${reqData}`);
+      res.status(200).send(`set: ${reqGlobal}(${reqSubscripts})=${reqData}\n`);
     });
   }
   else {
@@ -54,7 +54,7 @@ app.post('/set', (req, res) => {
         res.status(500).send(error);
         return;
       }
-      res.status(200).send(`set: ${reqGlobal}=${reqData}`);
+      res.status(200).send(`set: ${reqGlobal}=${reqData}\n`);
     });
   }
 
