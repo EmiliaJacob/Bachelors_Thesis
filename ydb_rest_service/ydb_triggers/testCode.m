@@ -1,4 +1,5 @@
- set x="../testFifo"
- open x:fifo
- use x write $ZTVALUE,!
- close x
+	set x="/app/testFifo"
+	open x:fifo
+	use x write $ZTVALUE,!
+	close x
+	;
