@@ -1,0 +1,2 @@
++^test -commands=Set -xecute="do ^deactivate" -name=deactivate
+
