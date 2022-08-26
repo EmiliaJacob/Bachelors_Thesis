@@ -15,6 +15,10 @@ curl -X POST localhost:4000/set \
 	-H 'Content-Type: application/json' \
 	-d '{"global":"articles", "subscripts":["'"$id_tulips"'", "price"], "data":"3.99"}'
 
+curl -X POST localhost:4000/set \
+	-H 'Content-Type: application/json' \
+	-d '{"global":"articles", "subscripts":["'"$id_tulips"'", "active"], "data":"1"}'
+
 #Violets
 curl -X POST localhost:4000/set \
 	-H 'Content-Type: application/json' \
@@ -28,6 +32,10 @@ curl -X POST localhost:4000/set \
 	-H 'Content-Type: application/json' \
 	-d '{"global":"articles", "subscripts":["'"$id_violets"'", "price"], "data":"2.99"}'
 
+curl -X POST localhost:4000/set \
+	-H 'Content-Type: application/json' \
+	-d '{"global":"articles", "subscripts":["'"$id_violets"'", "active"], "data":"1"}'
+
 #Roses
 curl -X POST localhost:4000/set \
 	-H 'Content-Type: application/json' \
@@ -40,3 +48,7 @@ curl -X POST localhost:4000/set \
 curl -X POST localhost:4000/set \
 	-H 'Content-Type: application/json' \
 	-d '{"global":"articles", "subscripts":["'"$id_roses"'", "price"], "data":"4.99"}'
+
+curl -X POST localhost:4000/set \
+	-H 'Content-Type: application/json' \
+	-d '{"global":"articles", "subscripts":["'"$id_roses"'", "active"], "data":"1"}'

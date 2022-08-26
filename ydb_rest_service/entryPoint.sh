@@ -5,6 +5,7 @@ source ./node_modules/nodem/resources/environ
 cp ./ydb_triggers/*.m /app/node_modules/nodem/src
 
 mupip trigger -triggerfile=./ydb_triggers/testTrig.trig
+mupip trigger -triggerfile=./ydb_triggers/deactivateTrig.trig
 
 mosquitto&
 

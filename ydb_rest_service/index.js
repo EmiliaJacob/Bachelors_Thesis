@@ -7,31 +7,34 @@ app.use(express.json());
 app.listen(4000);
 
 
-app.post('/expired', (req, res) => {
-  if(!req.body.articleName){
-    res.status(400).send('wrong data');
-    return;
-  }
+app.post('/deactivateArticle', (req, res) => {
+  // if(!(req.body.global && req.body.subscripts[0]==''){ TODO: Is this check neccessary?
+  //   res.status(400).send('wrong data');
+  //   return;
+  // }
 
-  ydb_data_result = ydb.data({global: req.body.articleName}); 
+  reqArticleId = req.body.articleId;
+
+  ydb_data_result = ydb.data({global: "articles", subscripts: [reqArticleId]}); 
 
   if(ydb_data_result.defined == 0) {
     res.status(400).send("article not found");
     return;
   }
 
-  current_article_status = ydb.get({global: req.body.articleName, subscripts: ['active']}).data;
-  if(current_article_status == 0) {
+  activeData = ydb.get({global: "articles", subscripts: [reqArticleId, "active"]}).data;
+
+  if(activeData == 0) {
     res.status(400).send('article already inactice');
     return;
   }
 
-  ydb.set({global: req.body.articleName, subscripts:['active'], data:0}, (error, result) => {
+  ydb.set({global: 'articles', subscripts:[reqArticleId, 'active'], data:0}, (error, result) => {
     if(error){
       res.status(500).send(error);
       return;
     }
-    res.status(200).send("successfully updated property");
+    res.status(200).send("successfully deactivated article");
   });
 });
 
