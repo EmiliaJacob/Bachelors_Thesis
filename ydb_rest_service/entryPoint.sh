@@ -4,8 +4,7 @@ source ./node_modules/nodem/resources/environ
 
 cp ./ydb_triggers/*.m /app/node_modules/nodem/src
 
-# mupip trigger -triggerfile=./ydb_triggers/testTrig.trig
-mupip trigger -triggerfile=/app/ydb_triggers/deactivate.trig
+mupip trigger -triggerfile=/app/ydb_triggers/deactivateArticle.trig
 
 mosquitto&
 
@@ -13,8 +12,8 @@ sleep 4
 
 (node index.js)&
 
-./fifoReadScript.sh&
+./readFifo.sh&
 
- mosquitto_sub -t /test
+(mosquitto_sub -t /test)&
 
-#/usr/bin/bash
+/usr/bin/bash

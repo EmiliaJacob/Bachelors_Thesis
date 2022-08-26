@@ -1,1 +1,0 @@
-+^articles(articleID=:,"active") -commands=SET -xecute="do ^deactivate"
