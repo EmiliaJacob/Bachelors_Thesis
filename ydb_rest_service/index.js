@@ -8,8 +8,6 @@ app.listen(4000);
 
 
 app.post('/expired', (req, res) => {
-
-
   if(!req.body.articleName){
     res.status(400).send('wrong data');
     return;
@@ -47,7 +45,7 @@ app.post('/set', (req, res) => {
         res.status(500).send(error);
         return;
       }
-      res.status(200).send("successfully set variable");
+      res.status(200).send(`set: ${reqGlobal}(${reqSubscripts})=${reqData}`);
     });
   }
   else {
@@ -56,7 +54,7 @@ app.post('/set', (req, res) => {
         res.status(500).send(error);
         return;
       }
-      res.status(200).send("successfully set variable");
+      res.status(200).send(`set: ${reqGlobal}=${reqData}`);
     });
   }
 
