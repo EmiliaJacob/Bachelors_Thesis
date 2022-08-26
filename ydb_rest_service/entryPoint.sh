@@ -14,6 +14,6 @@ sleep 4
 
 ./fifoReadScript.sh&
 
-(mosquitto_sub -t /test)&
+ mosquitto_sub -t /test
 
-/usr/bin/bash
+#/usr/bin/bash
