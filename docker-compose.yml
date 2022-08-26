@@ -13,6 +13,7 @@ services:
       - "mosquitto"
     build: db_mqtt_client
   ydb-rest-service:
+  
     depends_on:
       - "mosquitto"
     build: ydb_rest_service

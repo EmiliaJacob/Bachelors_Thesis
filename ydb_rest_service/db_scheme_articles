@@ -1,0 +1,4 @@
+articles(id)=id
+articles(id, name)=articleName
+articles(id, price)=articlePrice
+articles(id, active)=articleActivityStatus
