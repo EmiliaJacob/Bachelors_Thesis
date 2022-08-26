@@ -22,10 +22,4 @@ COPY . .
 
 ENTRYPOINT ./entryPoint.sh
 
-#RUN npm install nodemon -g
-
-#RUN . /opt/yottadb/current/ydb_env_set && mupip trigger -triggerfile=./ydb_triggers/test_trig.trig
-
 #CMD /usr/bin/bash
-
-#ENTRYPOINT . /opt/yottadb/current/ydb_env_set && source ~/nodem/resources/environ && node --verbose index.js& && ./fifoReadScript&

@@ -1,8 +1,8 @@
-. /opt/yottadb/current/ydb_env_set
+source /opt/yottadb/current/ydb_env_set
 
-source ./node_modules/nodem/resources/environ
+source /app/node_modules/nodem/resources/environ
 
-cp ./ydb_triggers/*.m /app/node_modules/nodem/src
+cp /app/ydb_triggers/*.m /app/node_modules/nodem/src
 
 mupip trigger -triggerfile=/app/ydb_triggers/test.trig
 
@@ -14,7 +14,7 @@ sleep 4
 
 (node index.js)&
 
-./readFifo.sh&
+/app/readFifo.sh&
 
 (mosquitto_sub -t /deactivated)&
 (mosquitto_sub -t /test)&
