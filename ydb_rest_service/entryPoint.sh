@@ -14,6 +14,6 @@ sleep 4
 
 ./readFifo.sh&
 
-(mosquitto_sub -t /test)&
+(mosquitto_sub -t /deactivated)&
 
 /usr/bin/bash
