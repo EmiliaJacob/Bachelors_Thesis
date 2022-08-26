@@ -1,10 +1,19 @@
 . /opt/yottadb/current/ydb_env_set
-source ./node_modules/nodem/resources/environ
-#export ydb_routines="/app/ydb_triggers $ydb_routines"
-cp ./ydb_triggers/*.m /app/node_modules/nodem/src
-ls /data/r1.34_x86_64/o/utf8
-mupip trigger -triggerfile=./ydb_triggers/testTrig.trig
-./fifoReadScript.sh&
-#node index.js
-/bin/bash
 
+source ./node_modules/nodem/resources/environ
+
+cp ./ydb_triggers/*.m /app/node_modules/nodem/src
+
+mupip trigger -triggerfile=./ydb_triggers/testTrig.trig
+
+mosquitto&
+
+sleep 4
+
+(node index.js)&
+
+./fifoReadScript.sh&
+
+(mosquitto_sub -t /test)&
+
+/usr/bin/bash

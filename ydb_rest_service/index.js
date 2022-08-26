@@ -47,7 +47,7 @@ app.post('/set', (req, res) => {
         res.status(500).send(error);
         return;
       }
-      res.status(200).send("successfully updated property");
+      res.status(200).send("successfully set variable");
     });
   }
   else {
@@ -56,7 +56,7 @@ app.post('/set', (req, res) => {
         res.status(500).send(error);
         return;
       }
-      res.status(200).send("successfully updated property");
+      res.status(200).send("successfully set variable");
     });
   }
 

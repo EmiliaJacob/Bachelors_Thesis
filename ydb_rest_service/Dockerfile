@@ -2,8 +2,6 @@ FROM yottadb/yottadb-base:latest
 
 SHELL ["/bin/bash", "-c"]
 
-#ENV ydb_dist=/opt/yottadb/current
-
 RUN apt-get update && apt-get install curl make g++ -y
 
 RUN curl -sL https://deb.nodesource.com/setup_16.x -o /tmp/nodesource_setup.sh
@@ -22,11 +20,12 @@ RUN . /opt/yottadb/current/ydb_env_set && npm install
 
 COPY . .
 
-ENTRYPOINT ./entryPoint.sh
+#ENTRYPOINT ./entryPoint.sh
+
 #RUN npm install nodemon -g
 
 #RUN . /opt/yottadb/current/ydb_env_set && mupip trigger -triggerfile=./ydb_triggers/test_trig.trig
 
-#CMD /usr/bin/bash
+CMD /usr/bin/bash
 
 #ENTRYPOINT . /opt/yottadb/current/ydb_env_set && source ~/nodem/resources/environ && node --verbose index.js& && ./fifoReadScript&

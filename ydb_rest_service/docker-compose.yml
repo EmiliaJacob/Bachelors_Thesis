@@ -5,5 +5,6 @@ services:
       - ./ydb-data:/data
     ports:
       - "4000:4000"
+  mosquitto:
 
 
