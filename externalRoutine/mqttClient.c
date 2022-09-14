@@ -5,7 +5,7 @@
 
 void createClientAndPublish(int count, ydb_char_t *topic, ydb_char_t *payload)
 {
-  printf("topic: %s\n, payload: %s\n", topic, payload);
+  //printf("topic: %s\n, payload: %s\n", topic, payload);
   const char *host = "127.0.0.1";
   int port = 1883;
 
