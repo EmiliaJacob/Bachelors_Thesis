@@ -1,0 +1,10 @@
+ydbLib=$(shell pkg-config --libs yottadb) 
+mqttClient=/home/emi/client
+
+ydb-mqtt-set:
+    gcc ydb-mqtt-set.o \
+        $(mqttClient)/sub_client.o \
+        $(mqttClient)/client_shared.o \
+        $(mqttClient)/client_props.o \
+        $(ydbLib) \
+        /home/emi/mosquitto/lib/libmosquitto.so.1
