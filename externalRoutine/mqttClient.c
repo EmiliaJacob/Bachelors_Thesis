@@ -18,6 +18,8 @@ void createClientAndPublish(int count, ydb_char_t *topic, ydb_char_t *payload)
   if(initResult != MOSQ_ERR_SUCCESS) 
     return;
   
+  //mosquitto_loop_start(client);
+
   client = mosquitto_new(NULL, true, NULL);
 
   if(client == NULL) 

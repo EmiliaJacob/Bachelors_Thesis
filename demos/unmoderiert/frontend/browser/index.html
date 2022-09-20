@@ -1,0 +1,41 @@
+<head>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="dataside">
+        <h1>Proxy Object</h1>
+        <p id="field1"></p>
+        <div class="dataset"></div>
+    </div>
+    <div id="controlside">
+            <h2>Publish</h2>
+            <label for="topicField">Topic: </label>
+            <input type="string" name="topicField" id="topicField"><br>
+            <label for="messageField">Message: </label>
+            <input type="string" name="messageField" id="messageField"><br>
+            <input type="button" value="Publish!" id="publishButton">
+        <br>
+            <h2>Subscribe</h2>
+            <label for="subTopicField">Topic</label>
+            <input type="string" name="subTopicField" id="subTopicField"><br>
+            <input type="button" value="Subscribe!" id="subscribeButton">
+        <br>
+        <h2>Unsubscribe</h2>
+        <label for="unsubTopicField">Topic</label>
+        <input type="string" name="unsubTopicField" id="unsubTopicField"><br>
+        <input type="button" value="Clear!" id="clearButton">
+        <br>
+        <h2>Subscribe to Default Topics</h2>
+        <input type="button" value="Subscribe to Default" id="defaultSubButton">
+        <br>
+        <h2>Sample Dataset</h2>
+        <input type="button" value="Publish sample data!" id="sampleDataButton">
+    </div>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script type="text/javascript" src="tablebuilder.js"></script>
+    <script type="text/javascript" src="proxyhandlers.js"></script>
+    <script type="text/javascript" src="index.js"></script>
+    <script type="text/javascript" src="messageevents.js"></script>
+    <script type="text/javascript" src="userevents.js"></script>
+</body>

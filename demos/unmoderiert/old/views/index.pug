@@ -1,0 +1,11 @@
+html
+   head  
+      title= title 
+      script(defer="true")
+        include ../scripts/index.js         
+   body 
+      h3="Give the synced variable a new value, or see the value that others give it:"
+      p
+        input(type="text", name="inputVariable")#inputVariable
+      p 
+        button#buttonUpdateVariable Set new value :3
