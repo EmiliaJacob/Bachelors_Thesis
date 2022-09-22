@@ -29,6 +29,7 @@ static mosquitto_plugin_id_t * mosq_pid = NULL;
 static char * resp;
 
 static int callback_basic_auth(int event, void *event_data, void *userdata) {
+	mosquitto_log_printf(MOSQ_LOG_INFO, "AUTH STARTED");
 	struct mosquitto_evt_basic_auth * ed = event_data;
 	static ci_name_descriptor ci_auth = {{sizeof("AUTH")-1, "AUTH"},NULL};
 	int rc, rc2;
@@ -39,6 +40,7 @@ static int callback_basic_auth(int event, void *event_data, void *userdata) {
 }
 
 static int callback_acl_check(int event, void *event_data, void *userdata) {
+	mosquitto_log_printf(MOSQ_LOG_INFO, "ACL STARTED");
 	struct mosquitto_evt_acl_check * ed = event_data;
 	static ci_name_descriptor ci = {{sizeof("ACL")-1, "ACL"},NULL};
 	int rc, rc2 = 1;

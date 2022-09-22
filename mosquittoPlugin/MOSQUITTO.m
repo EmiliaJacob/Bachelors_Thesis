@@ -1,45 +1,26 @@
 MOSQUITTO	;
 
-	; Aufruf durch MOSQUITTO
+	; Zentrale Unterroutinen
 
-AUTH(clid,user,pass)
-	n (user,pass,clid)
-	s a=$i(^dummy)
-	i user="",pass="" q 0
-	i user="W",pass="B" q 0
-	q 1
-
-MSG(clid,user,topic,msg,ok)
-	n (clid,user,topic,msg)
-	; jetzt ein paar direkte Antworten
-	d spool("m",clid,"TestTopic","Hallo!") ; nur an Client selber
-	d spool("m","","test/in","blubb") ; an alle
-	d spool("^MQTTSPOOL","","to/all",$H) ; Gespoolt - zum Testen
-	q $$convert(.m)
-
-ACL(clid,user,topic,access,ok)
-	n (clid,user,topic,access,ok)
-	i access=4 d spool("m",clid,"wel","come") ; Begruessung
-	s ok=0 ; subscibe und write erlaubt
-	q $$convert(.m)
-
-TICK ;; ToDo: evtl Lock
+TICK ;; // Evtl besser in C ???
+	;; Besser wÃ¤re mit $O rein und bei vor/bei ^MQTTSPOOL aufhÃ¶ren?
 	n
 	i '$D(^MQTTSPOOL) q $C(0)
+	l +^MQTTSPOOL
 	m m=^MQTTSPOOL k ^MQTTSPOOL
+	l -^MQTTSPOOL
 	q $$convert(.m)
-
-	; Interne Hilfsroutinen
-	; (ausser spool, das kann von ueberall her gerufen werden wenn ^MQTTSPOOL uebergeben wird)
 
 spool(dest,clid,topic,message) ; ToDo: evtl Lock
 	i $E(dest)="^" d
 	. n (dest,clid,topic,message)
+	. l +@dest
 	e  d
 	. n (dest,@dest,clid,topic,message)
 	s nr=$i(@dest)
 	s dummy("c")=clid,dummy("t")=topic,dummy("m")=message
 	m @(dest_"("_nr_")")=dummy
+	i $E(dest)="^" l -@dest
 	q
 
 convert(m)
@@ -56,3 +37,12 @@ convert(m)
 	s $E(str,1)=$C(n)
 	q str
 
+MSG(clid,user,topic,msg,ok) ; Not needed
+	s ok=0;
+	q $C(0)
+	n (clid,user,topic,msg)
+	; jetzt ein paar direkte Antworten
+	d spool("m",clid,"t","Hallo!") ; nur an Client selber
+	d spool("m","","t","blubb") ; an alle
+	d spool("^MQTTSPOOL","","to/all",$H) ; Gespoolt - zum Testen
+	q $$convert(.m)
