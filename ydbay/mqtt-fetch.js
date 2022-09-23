@@ -68,11 +68,13 @@ class mqtt_fetch {
 			v = JSON.stringify(v);
 		const that = this;
 		return new Promise(function(resolve) {
+		    console.log("OUTMESSAGEPAYLOAD: " + v);
 			var message = new Paho.MQTT.Message(v);
 			message.destinationName = that.prefix + that.mqtt_client.clientId + "/fr/" + that.mqtt_topicIndex;
 			message.qos = that.qos;
 			that.mqtt_topicMap.set(that.mqtt_topicIndex, [resolve,setTimeout(that.mqtt_fetch_error, that.timeout, that.mqtt_topicIndex, that), is_object]);
-      console.log("OUTMESSAGETOPIC: " + message.destinationName);
+
+		    console.log("OUTMESSAGETOPIC: " + message.destinationName);
 			that.mqtt_client.send(message);
 			that.mqtt_topicIndex++;
 		});
@@ -132,5 +134,3 @@ class mqtt_fetch {
 		return rc;
 	}
 };
-
-//module.exports = {mqtt_fetch};
