@@ -1,0 +1,25 @@
+body {
+    display: grid;
+    grid-template-columns: 20% auto;
+}
+#head {
+    background-image: url("aabay.svg");
+    background-repeat: no-repeat;
+    background-size: contain;
+    height: 15vH;
+    grid-column-start: 1;
+    grid-column-end: 3;
+    border-bottom: thin solid;
+}
+#menu {
+    height: 80vH;
+    border-right: thin solid;
+}
+#content {
+    height: 80vH;
+    overflow: scroll;
+}
+
+li {
+	cursor:pointer;
+}
