@@ -87,21 +87,57 @@ void resp_2_send() {
 }
 static int callback_message(int event, void *event_data, void *userdata)
 {
-	/*
-	 unused - nicht verwendet!!!
-	 */
-//	struct mosquitto_evt_message * ed = event_data;
-//	static ci_name_descriptor ci = {{sizeof("MSG")-1, "MSG"},NULL};
-//	int rc;
+  struct mosquitto_evt_message * ed = event_data;
+
+  //check for right topic
+  char topicArray[strlen(ed->topic)+1];
+  strcpy(topicArray, ed->topic);
+
+  //char *articleId = NULL;
+  char *delim = "/";
+
+  int number_of_subtopics = 1;
+  char *subtopic = strtok(topicArray, delim);
+
+  ydb_buffer_t articleId;
+
+  while(subtopic != NULL) {
+
+    mosquitto_log_printf(MOSQ_LOG_INFO, "%d SUBTOPIC FOUND: %s\n", number_of_subtopics, subtopic);
+
+    switch(number_of_subtopics){
+      case 1:
+        if(strcmp(subtopic,"aabay") != 0){
+          return MOSQ_ERR_SUCCESS;
+        }
+        break;
+      case 2:
+        if(strcmp(subtopic,"bids") != 0){
+          return MOSQ_ERR_SUCCESS;
+        }
+        break;
+      case 3:
+        //articleId = subtopic;
+        YDB_LITERAL_TO_BUFFER(subtopic, &articleId);
+        break;
+      case 4:
+        return MOSQ_ERR_SUCCESS;
+        break;
+    }
+
+    number_of_subtopics += 1;
+
+    subtopic = strtok(NULL, delim);
+  }
+
+  //ydb.set("^hello",0,NULL,"world");
+  
+  ydb_buffer_t g_var; // TODO: move somewhere else
+  YDB_LITERAL_TO_BUFFER("^latestBid", &g_var);
+  ydb_set_s(&g_var, 0, NULL, &articleId); // TODO: check for return
+
+	mosquitto_log_printf(MOSQ_LOG_INFO, "topic: %s, payload: %s",ed->topic, ed->payload);
 	return MOSQ_ERR_SUCCESS;
-/*	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_MESSAGE client %s user %s", mosquitto_client_id(ed->client), mosquitto_client_username(ed->client));
-	mosquitto_log_printf(MOSQ_LOG_INFO, "%d %lu", ed->payloadlen, (long unsigned) ed->payload);
-	printf("MOSQ_EVT_MESSAGE client %s user %s\n", mosquitto_client_id(ed->client), mosquitto_client_username(ed->client));
-	printf("%d %lu\n", ed->payloadlen, (long unsigned) ed->payload);
-	rc = ydb_cip(&ci, resp, mosquitto_client_id(ed->client), mosquitto_client_username(ed->client) ? mosquitto_client_username(ed->client) : "", ed->topic, ed->payload? ed->payload : "");
-	mosquitto_log_printf(MOSQ_LOG_INFO,"Result: %d", rc);
-	resp_2_send();
-	return MOSQ_ERR_SUCCESS;*/
 }
 
 static int callback_tick(int event, void *event_data, void *userdata) {
@@ -145,14 +181,6 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 			rou = opts[i].value, mosquitto_log_printf(MOSQ_LOG_INFO, "Routine '%s'\n", rou);
 	}
 
-
-	//rou = "MOSQCHAT";
-	
-	//setenv("ydb_dir", "/home/wbantel/.yottadb", 1);
-	//setenv("ydb_gbldir", "/home/wbantel/.yottadb/r1.24_x86_64/g/yottadb.gld", 1);
-	//setenv("ydb_routines", "/home/wbantel/.yottadb/r1.24_x86_64/o*(/home/wbantel/.yottadb/r1.24_x86_64/r /home/wbantel/.yottadb/r) /usr/local/lib/yottadb/r124/plugin/o/_ydbposix.so /usr/local/lib/yottadb/r124/libyottadbutil.so /usr/local/lib/yottadb/r124/libyottadb.so", 1);
-	//setenv("ydb_rel", "r1.24_x86_64", 1);
-	
 	sprintf(ci_fn, "/tmp/mosquitto-ydb-%d.ci", getpid());
 	printf("%s\n", ci_fn);
 	ci_fp = fopen(ci_fn, "w");
@@ -177,8 +205,8 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	mosquitto_callback_register(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_basic_auth, NULL, *user_data)
 	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, callback_acl_check, NULL, *user_data)
 	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
-	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL, *user_data);
-	//|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data)
+	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL, *user_data)
+	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
 }
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
