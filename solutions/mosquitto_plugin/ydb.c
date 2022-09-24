@@ -134,8 +134,10 @@ static int callback_message(int event, void *event_data, void *userdata)
   
   ydb_buffer_t g_var; // TODO: move somewhere else
   YDB_LITERAL_TO_BUFFER("^latestBid", &g_var);
-  ydb_set_s(&g_var, 0, NULL, &articleId); // TODO: check for return
-
+  int ydb_set_s_result = ydb_set_s(&g_var, 0, NULL, &articleId); // TODO: check for return
+  if(ydb_set_s_result == YDB_OK){
+    mosquitto_log_printf(MOSQ_LOG_INFO, "SETTING THE GLOBAL VAR WERKED");
+  }
 	mosquitto_log_printf(MOSQ_LOG_INFO, "topic: %s, payload: %s",ed->topic, ed->payload);
 	return MOSQ_ERR_SUCCESS;
 }
