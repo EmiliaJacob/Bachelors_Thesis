@@ -15,13 +15,13 @@ void createClientAndPublish(ydb_char_t *topic, ydb_char_t *payload) {
 
   if(connResult != MOSQ_ERR_SUCCESS) {
 
-    if((initresult = mosquitto_lib_init()) != mosq_err_success) {
+    if((initResult = mosquitto_lib_init()) != MOSQ_ERR_SUCCESS) {
       return;
     }
     if((client = mosquitto_new(NULL, true, NULL)) == NULL) {
       return;
     }
-    if((conn_result = mosquitto_connect_async(client, BROKER_HOSTNAME, BROKER_PORT, 10)) != MOSQ_ERR_SUCCESS) {
+    if((connResult = mosquitto_connect_async(client, BROKER_HOSTNAME, BROKER_PORT, 10)) != MOSQ_ERR_SUCCESS) {
       return;
     }
 
@@ -48,6 +48,8 @@ void createClientAndPublish(ydb_char_t *topic, ydb_char_t *payload) {
   
   printf("hi\n");
 
+  while(1){
+  }
   // clean up
   mosquitto_disconnect(client);
   mosquitto_destroy(client);
