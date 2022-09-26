@@ -63,6 +63,7 @@ exports.aabay = function(topic, message) {
           {topic: `${topic.split('/')[0]}/${topic.split('/')[1]}/${dummy.client}/to/${topic.split('/')[4]}`, payload: {rc: -1} }
         );
         //universal new bid msg
+        console.log("JJJJJJJJJJJJ: ", o.id);
         response.push(
           {topic: `aabay/bids/${o.id}`, payload: `${dummy.maxbid+1}`}
         );

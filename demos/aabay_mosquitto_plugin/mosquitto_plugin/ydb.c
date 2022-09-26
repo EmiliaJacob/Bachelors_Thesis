@@ -85,7 +85,6 @@ void resp_2_send() {
 	}
 	resp[0] = '\0';
 }
-
 static int callback_message(int event, void *event_data, void *userdata)
 {
   struct mosquitto_evt_message * ed = event_data;
@@ -97,12 +96,15 @@ static int callback_message(int event, void *event_data, void *userdata)
   char *delim = "/";
 
   int number_of_subtopics = 1;
-
-  char *article_id = NULL;
-
   char *subtopic = strtok(topicArray, delim);
 
+  ydb_buffer_t article_id;
+
+  ydb_buffer_t new_bid;
+
   while(subtopic != NULL) {
+
+    mosquitto_log_printf(MOSQ_LOG_INFO, "%d SUBTOPIC FOUND: %s\n", number_of_subtopics, subtopic);
 
     switch(number_of_subtopics){
       case 1:
@@ -110,63 +112,34 @@ static int callback_message(int event, void *event_data, void *userdata)
           return MOSQ_ERR_SUCCESS;
         }
         break;
-
       case 2:
         if(strcmp(subtopic,"bids") != 0){
           return MOSQ_ERR_SUCCESS;
         }
         break;
-
       case 3:
-        article_id = subtopic;
+        YDB_LITERAL_TO_BUFFER(subtopic, &article_id);
+        YDB_LITERAL_TO_BUFFER(ed->payload, &new_bid);
         break;
-
       case 4:
         return MOSQ_ERR_SUCCESS;
         break;
     }
-
-    // mosquitto_log_printf(MOSQ_LOG_INFO, "%d SUBTOPIC FOUND: %s\n", number_of_subtopics, subtopic);
 
     number_of_subtopics += 1;
 
     subtopic = strtok(NULL, delim);
   }
 
-// create string for global variable name of article
-  char *caret = "^";
-  size_t global_var_name_literal_size = strlen(caret) + strlen(article_id) + 1;
-  char *global_var_name_string = malloc(global_var_name_literal_size); // TODO: Clean up
+  int ydb_set_s_result = ydb_set_s(&article_id,0,NULL,&article_id); 
 
-  strcpy(global_var_name_string, caret);
-  strcat(global_var_name_string, article_id);
-
-  mosquitto_log_printf(MOSQ_LOG_INFO, "GLOBALVARNAME: %lu %s\n", strlen(global_var_name_string), global_var_name_string);
-
-  ydb_buffer_t global_var_name_buffer; 
-//   YDB_LITERAL_TO_BUFFER(global_var_name_string, &global_var_name_buffer);
-	char t[strlen(global_var_name_string)+1];
-	strcpy(t, global_var_name_string);
-
-  global_var_name_buffer.buf_addr = &t;
-  global_var_name_buffer.len_used = strlen(t);
-  global_var_name_buffer.len_alloc = strlen(t)+1;
-  
-  ydb_buffer_t err;
-
-  ydb_buffer_t zstatus;
-  char *jj ="jj";
-  YDB_LITERAL_TO_BUFFER(jj, &zstatus);
-
-    mosquitto_log_printf(MOSQ_LOG_INFO, "WERK  %s\n", zstatus.buf_addr);
-
-  ydb_buffer_t subtopic_name;
-
-  //YDB_LITERAL_TO_BUFFER("^latestBid", &global_variable);
-  int ydb_set_s_result = ydb_set_s(&global_var_name_buffer, 0, NULL, &global_var_name_buffer); // TODO: check for return
   if(ydb_set_s_result == YDB_OK){
     mosquitto_log_printf(MOSQ_LOG_INFO, "SETTING THE GLOBAL VAR WERKED");
   }
+  else {
+    mosquitto_log_printf(MOSQ_LOG_INFO, "IT DIDNT WERK");
+  }
+
 	mosquitto_log_printf(MOSQ_LOG_INFO, "topic: %s, payload: %s",ed->topic, ed->payload);
 	return MOSQ_ERR_SUCCESS;
 }
@@ -192,7 +165,6 @@ int mosquitto_plugin_version(int supported_version_count, const int *supported_v
 }
 
 char ci_fn[64];
-
 int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, struct mosquitto_opt *opts, int opt_count)
 {
 	int rc;
