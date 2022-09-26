@@ -6,31 +6,33 @@
 #define BROKER_PORT 1883
 #define BROKER_HOSTNAME "localhost"
 
-void createClientAndPublish(int count, ydb_char_t *topic, ydb_char_t *payload)
-{
-  //printf("topic: %s\n, payload: %s\n", topic, payload);
-  //const char *host = "127.0.0.1";
-  //int port = 1883;
+void createClientAndPublish(ydb_char_t *topic, ydb_char_t *payload) {
 
-  int initResult = mosquitto_lib_init();
-  struct mosquitto *client;
+  static int initResult = -1;
+  static int connResult = -1;
 
-  if(initResult != MOSQ_ERR_SUCCESS) 
+  static struct mosquitto *client = NULL;
+
+  if(connResult != MOSQ_ERR_SUCCESS) {
+
+    if((initresult = mosquitto_lib_init()) != mosq_err_success) {
+      return;
+    }
+    if((client = mosquitto_new(NULL, true, NULL)) == NULL) {
+      return;
+    }
+    if((conn_result = mosquitto_connect_async(client, BROKER_HOSTNAME, BROKER_PORT, 10)) != MOSQ_ERR_SUCCESS) {
+      return;
+    }
+
+    mosquitto_loop_start(client);
+  }
+
+  if(connResult != MOSQ_ERR_SUCCESS) {
     return;
+  }
   
-  //mosquitto_loop_start(client);
-
-  client = mosquitto_new(NULL, true, NULL);
-
-  if(client == NULL) 
-    return;
-  
-  int conn_result = mosquitto_connect(client, BROKER_HOSTNAME, BROKER_PORT, 0);
-
-  if(conn_result != MOSQ_ERR_SUCCESS)
-    return;
-
-  int pub_result = mosquitto_publish(
+  int pub_result = mosquitto_publish (
     client,
     NULL,
     topic,
@@ -40,11 +42,18 @@ void createClientAndPublish(int count, ydb_char_t *topic, ydb_char_t *payload)
     true
   );
 
-  if(pub_result != MOSQ_ERR_SUCCESS)
+  if(pub_result != MOSQ_ERR_SUCCESS) {
     return;
+  }
+  
+  printf("hi\n");
 
   // clean up
   mosquitto_disconnect(client);
   mosquitto_destroy(client);
 }
 
+int main() {
+  createClientAndPublish("hello", "world");
+  return 0;
+}
