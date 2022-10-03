@@ -1,48 +1,49 @@
 MOSQUITTO	;
-
+	;
 	; Zentrale Unterroutinen
-
+	;
 TICK ;; // Evtl besser in C ???
 	;; Besser wÃ¤re mit $O rein und bei vor/bei ^MQTTSPOOL aufhÃ¶ren?
-	n
-	i '$D(^MQTTSPOOL) q $C(0)
-	l +^MQTTSPOOL
-	m m=^MQTTSPOOL k ^MQTTSPOOL
-	l -^MQTTSPOOL
-	q $$convert(.m)
-
+	new
+	if '$DATA(^MQTTSPOOL) quit $CHAR(0) ;; check if mqttspool global var exists
+	lock +^MQTTSPOOL ;; Bezeichner ^MQTTSPOOL wird gelockt
+	merge m=^MQTTSPOOL kill ^MQTTSPOOL ;; Inhalt von ^MQTTSPOOL wird in globale Var m kopiert
+	lock -^MQTTSPOOL ;; MQTTSPOOL wird wieder freigegeben
+	quit $$convert(.m) ;; actualname: m wird per referenz gepasst. muss bei scope-wechsel noch nicht definiert sein
+	;
 spool(dest,clid,topic,message) ; ToDo: evtl Lock
-	i $E(dest)="^" d
-	. n (dest,clid,topic,message)
-	. l +@dest
-	e  d
-	. n (dest,@dest,clid,topic,message)
-	s nr=$i(@dest)
-	s dummy("c")=clid,dummy("t")=topic,dummy("m")=message
-	m @(dest_"("_nr_")")=dummy
-	i $E(dest)="^" l -@dest
-	q
-
-convert(m)
-	n (m)
-	s str="_",n=0,idx=""
-	f  s idx=$O(m(idx)) q:idx=""  d
-	. s n=n+1
-	. i $G(m(idx,"c"))'="" d
-	. . s str=str_$C($L(m(idx,"c"))\256,$L(m(idx,"c"))#256)_m(idx,"c")_$C(0)
-	. e  d
-	. . s str=str_$C(0,0,0)
-	. s str=str_$C($L(m(idx,"t"))\256,$L(m(idx,"t"))#256)_m(idx,"t")_$C(0)
-	. s str=str_$C($L(m(idx,"m"))\256,$L(m(idx,"m"))#256)_m(idx,"m")_$C(0)
-	s $E(str,1)=$C(n)
-	q str
-
+	if $EXTRACT(dest)="^" do ; erstes zeichen wird extrahiert. es wird geprueft ob es sich um eine globale variabel handelt
+	. new (dest,clid,topic,message) ;; alle anderen lokalen vars bis auf die parameter werden im aktuellen scope resettet. das bringt bessere performance
+	. lock +@dest ; zielvariabelnname wird ueber indirektion ermittelt und gelockt. ; ist praktisch mqttspool
+	else  do ;; wenn globale var gepasst wurde, dann wird auch sie vom new ausgenommen. ;
+	. new (dest,@dest,clid,topic,message)
+	set nr=$INCREMENT(@dest) ; die variable scheint als wert einen nachrichtencounter zu haben. er wird hier erhoeht
+	set dummy("c")=clid,dummy("t")=topic,dummy("m")=message ;es wird eine neue lokal variable dummy in diesem scope hier gesetzt. sie bekommt client id, topic und message als subscript befuellt. ;
+	merge @(dest_"("_nr_")")=dummy ; die variabel hat den nachrichten-index als subscript. diesem subscript wird die dummy variable angehaengt. ; es wird gemerget, da sonst nur referenzen zu den bald ungueltigen lokalen parameter variabeln gespeichert wuerden. die dummy variabel erlaubt ein nur einmaliges mergen. ;
+	if $EXTRACT(dest)="^" lock -@dest ; falls die zielvariable global ist, wird sie wieder entlockt. ;
+	quit
+	;
+convert(m) ;; konvertiert varibel mit subscripts in string und returnt diesen
+	new (m) ;; alle anderen lokalen vars bis auf m werden im aktuellen scope resettet
+	set str="_",numberOfMessages=0,index="" ;; index wird auf leeren string initiert. Index ist der Index der Nachricht es koennen mehere Nachrichten eingefuegt worden sein
+	for  set index=$O(m(index)) quit:index=""  do ;; for does not generate an additional scope level for variables. it has no argument, so two spaces have to follow. its execution scope is in the same line, but can be extenden with a do. Die Schleife durchlaeuft einmal alle subscripts von m, was zuvor mqttspool war.  
+	. set numberOfMessages=numberOfMessages+1
+	. if $GET(m(index,"c"))'="" do ;;c ist vmtl client --> abaendern!
+	. . set str=str_$CHAR($LENGTH(m(index,"c"))\256,$LENGTH(m(index,"c"))#256)_m(index,"c")_$C(0)
+	. else  do
+	. . set str=str_$CHAR(0,0,0) ; erster teil des strings bekommt null als wert, wenn kein client bekannt ist
+	. set str=str_$CHAR($LENGTH(m(index,"t"))\256,$LENGTH(m(index,"t"))#256)_m(index,"t")_$CHAR(0)
+	. set str=str_$CHAR($LENGTH(m(index,"m"))\256,$LENGTH(m(index,"m"))#256)_m(index,"m")_$CHAR(0)
+	set $EXTRACT(str,1)=$CHAR(numberOfMessages) ; fuegt die anzahl der nachrichten dem string hinzu
+	quit str
+	;
 MSG(clid,user,topic,msg,ok) ; Not needed
-	s ok=0;
-	q $C(0)
-	n (clid,user,topic,msg)
+	set ok=0;
+	quit $C(0)
+	new (clid,user,topic,msg)
 	; jetzt ein paar direkte Antworten
-	d spool("m",clid,"t","Hallo!") ; nur an Client selber
-	d spool("m","","t","blubb") ; an alle
-	d spool("^MQTTSPOOL","","to/all",$H) ; Gespoolt - zum Testen
-	q $$convert(.m)
+	do spool("m",clid,"t","Hallo!") ; nur an Client selber
+	do spool("m","","t","blubb") ; an alle
+	do spool("^MQTTSPOOL","","to/all",$H) ; Gespoolt - zum Testen
+	quit $$convert(.m)
+	;

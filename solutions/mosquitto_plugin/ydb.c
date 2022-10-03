@@ -21,178 +21,143 @@ void resp_2_send();
 #define UNUSED(A) (void)(A)
 
 static mosquitto_plugin_id_t * mosq_pid = NULL;
-static char * resp;
+static char * response;
 
-static int callback_basic_auth(int event, void *event_data, void *userdata) {
-	struct mosquitto_evt_basic_auth * ed = event_data;
-	static ci_name_descriptor ci_auth = {{sizeof("AUTH")-1, "AUTH"},NULL};
-	int rc, rc2;
-	rc = ydb_cip(&ci_auth, &rc2, mosquitto_client_id(ed->client), ed->username ? ed->username : "", ed->password ? ed->password : "");
-	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_BASIC_AUTH %s / %s", ed->username, ed->password);
-	mosquitto_log_printf(MOSQ_LOG_INFO, "auth: %d '%d'", rc, rc2);
-	return !rc2 ? MOSQ_ERR_SUCCESS : MOSQ_ERR_AUTH;
-}
-
-static int callback_acl_check(int event, void *event_data, void *userdata) {
-	struct mosquitto_evt_acl_check * ed = event_data;
-	static ci_name_descriptor ci = {{sizeof("ACL")-1, "ACL"},NULL};
-	int rc, rc2 = 1;
-	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_ACL_CHECK topic %s acc %d msg %s\n", ed->topic, ed->access, ed->payload);
-	rc = ydb_cip(&ci, &rc2,
-		mosquitto_client_id(ed->client),
-		mosquitto_client_username(ed->client) ? mosquitto_client_username(ed->client) : "",
-		ed->access,
-		ed->topic,
-		ed->payloadlen,
-		ed->payload ? ed->payload : "",
-		resp
+static int callback_basic_auth(int event, void *event_data, void *userdata) 
+ {
+	struct mosquitto_evt_basic_auth * basic_auth_event_data = event_data;
+	static ci_name_descriptor basic_auth_ci_name_descriptor = {{sizeof("AUTH")-1, "AUTH"},NULL};
+	int ci_result, ci_return;
+	
+	ci_result = ydb_cip(
+		&basic_auth_ci_name_descriptor, 
+		&ci_return, 
+		mosquitto_client_id(basic_auth_event_data->client), 
+		basic_auth_event_data->username ? basic_auth_event_data->username : "", 
+		basic_auth_event_data->password ? basic_auth_event_data->password : ""
 	);
-	mosquitto_log_printf(MOSQ_LOG_INFO, "rc=%d rc2=%d   '%d'\n", rc, rc2, *resp);
-  if (!rc && !rc2){
-    mosquitto_log_printf(MOSQ_LOG_INFO, "HELLO");
-		resp_2_send();
-  }
-  else{
-    mosquitto_log_printf(MOSQ_LOG_INFO, "NO");
-		resp_2_send();
-  }
-	return 0;
+	
+	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_BASIC_AUTH %s / %s", basic_auth_event_data->username, basic_auth_event_data->password);
+	mosquitto_log_printf(MOSQ_LOG_INFO, "auth: %d '%d'", ci_result, ci_return);
+
+	return ci_return == YDB_OK ? MOSQ_ERR_SUCCESS : MOSQ_ERR_AUTH;
 }
 
-static int callback_disconnect(int event, void *event_data, void *userdata) {
-	struct mosquitto_evt_disconnect * ed = event_data;
-	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_DISCONNECT %s\n", mosquitto_client_id(ed->client));
+static int callback_acl_check(int event, void *event_data, void *userdata) 
+ {
+	struct mosquitto_evt_acl_check * acl_event_data = event_data;
+	static ci_name_descriptor acl_ci_name_descriptor = {{sizeof("ACL")-1, "ACL"},NULL};
+	int ci_result, ci_return = 1;
+	
+	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_ACL_CHECK topic %s acc %d msg %s\n", acl_event_data->topic, acl_event_data->access, acl_event_data->payload);
+	
+	ci_result = ydb_cip(
+		&acl_ci_name_descriptor, 
+		&ci_return,
+		mosquitto_client_id(acl_event_data->client),
+		mosquitto_client_username(acl_event_data->client) ? mosquitto_client_username(acl_event_data->client) : "",
+		acl_event_data->access,
+		acl_event_data->topic,
+		acl_event_data->payloadlen,
+		acl_event_data->payload ? acl_event_data->payload : "",
+		response
+	);
+	
+	mosquitto_log_printf(MOSQ_LOG_INFO, "rc=%d rc2=%d   '%d'\n", ci_result, ci_return, *response);
+	
+	if (ci_result == YDB_OK && ci_return == YDB_OK)
+		resp_2_send();
+		
+	return ci_result || ci_return;
+}
+
+static int callback_disconnect(int event, void *event_data, void *userdata) 
+{
+	struct mosquitto_evt_disconnect * disconnect_event_data = event_data;
+	
+	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_DISCONNECT %s\n", mosquitto_client_id(disconnect_event_data->client));
+	
 	return MOSQ_ERR_SUCCESS;
 }
 
-void resp_2_send() {
-	char *i_p = resp+1, *t_p, *m_p;
-	int i_l, t_l, m_l, n= resp[0];
+void resp_2_send() 
+{
+	char *i_p= response+1, *t_p, *m_p;
+	int i_l, t_l, m_l, n= response[0];
 	
 	mosquitto_log_printf(MOSQ_LOG_INFO, "Sende %d Nachrichten", n);
+	
 	for (int i = 0; i < n; i++) {
 		mosquitto_log_printf(MOSQ_LOG_INFO, "Nachricht %d:",i);
+		 
 		i_l = 256 * *i_p + *(i_p + 1);
 		mosquitto_log_printf(MOSQ_LOG_INFO, " %d '%s'", i_l, i_p + 2);
+		
 		t_p = i_p + i_l + 3;
 		t_l = 256 * *t_p + *(t_p + 1);
 		mosquitto_log_printf(MOSQ_LOG_INFO, " %d '%s'", t_l, t_p + 2);
+		
 		m_p = t_p + t_l + 3;
 		m_l = 256 * *m_p + *(m_p + 1);
 		mosquitto_log_printf(MOSQ_LOG_INFO, " %d '%s'", m_l, m_p + 2);
+		
 		mosquitto_broker_publish_copy(i_l ? i_p + 2 : NULL, t_p + 2, m_l, m_p + 2, 0, 0, NULL);
+		
 		i_p = m_p + 256 * *m_p + *(m_p + 1) + 3;
 	}
-	resp[0] = '\0';
+	
+	response[0] = '\0';
 }
 
-static int callback_message(int event, void *event_data, void *userdata)
+ static int callback_message(int event, void *event_data, void *userdata)
 {
-  struct mosquitto_evt_message * ed = event_data;
-
-  //check for right topic
-  char topicArray[strlen(ed->topic)+1];
-  strcpy(topicArray, ed->topic);
-
-  char *delim = "/";
-
-  int number_of_subtopics = 1;
-
-  char *article_id = NULL;
-
-  char *subtopic = strtok(topicArray, delim);
-
-  while(subtopic != NULL) {
-
-    switch(number_of_subtopics){
-      case 1:
-        if(strcmp(subtopic,"aabay") != 0){
-          return MOSQ_ERR_SUCCESS;
-        }
-        break;
-
-      case 2:
-        if(strcmp(subtopic,"bids") != 0){
-          return MOSQ_ERR_SUCCESS;
-        }
-        break;
-
-      case 3:
-        article_id = subtopic;
-        break;
-
-      case 4:
-        return MOSQ_ERR_SUCCESS;
-        break;
-    }
-
-    // mosquitto_log_printf(MOSQ_LOG_INFO, "%d SUBTOPIC FOUND: %s\n", number_of_subtopics, subtopic);
-
-    number_of_subtopics += 1;
-
-    subtopic = strtok(NULL, delim);
-  }
-
-// create string for global variable name of article
-  char *caret = "^";
-  size_t global_var_name_literal_size = strlen(caret) + strlen(article_id) + 1;
-  char *global_var_name_string = malloc(global_var_name_literal_size); // TODO: Clean up
-
-  strcpy(global_var_name_string, caret);
-  strcat(global_var_name_string, article_id);
-
-  mosquitto_log_printf(MOSQ_LOG_INFO, "GLOBALVARNAME: %lu %s\n", strlen(global_var_name_string), global_var_name_string);
-
-  ydb_buffer_t global_var_name_buffer; 
-//   YDB_LITERAL_TO_BUFFER(global_var_name_string, &global_var_name_buffer);
-	char t[strlen(global_var_name_string)+1];
-	strcpy(t, global_var_name_string);
-
-  global_var_name_buffer.buf_addr = &t;
-  global_var_name_buffer.len_used = strlen(t);
-  global_var_name_buffer.len_alloc = strlen(t)+1;
-  
-  ydb_buffer_t err;
-
-  ydb_buffer_t zstatus;
-  char *jj ="jj";
-  YDB_LITERAL_TO_BUFFER(jj, &zstatus);
-
-    mosquitto_log_printf(MOSQ_LOG_INFO, "WERK  %s\n", zstatus.buf_addr);
-
-  ydb_buffer_t subtopic_name;
-
-  //YDB_LITERAL_TO_BUFFER("^latestBid", &global_variable);
-  int ydb_set_s_result = ydb_set_s(&global_var_name_buffer, 0, NULL, &global_var_name_buffer); // TODO: check for return
-  if(ydb_set_s_result == YDB_OK){
-    mosquitto_log_printf(MOSQ_LOG_INFO, "SETTING THE GLOBAL VAR WERKED");
-  }
-	mosquitto_log_printf(MOSQ_LOG_INFO, "topic: %s, payload: %s",ed->topic, ed->payload);
+	/*
+	 unused - nicht verwendet!!!
+	 */
+//	struct mosquitto_evt_message * ed = event_data;
+//	static ci_name_descriptor ci = {{sizeof("MSG")-1, "MSG"},NULL};
+//	int rc;
 	return MOSQ_ERR_SUCCESS;
+/*	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_MESSAGE client %s user %s", mosquitto_client_id(ed->client), mosquitto_client_username(ed->client));
+	mosquitto_log_printf(MOSQ_LOG_INFO, "%d %lu", ed->payloadlen, (long unsigned) ed->payload);
+	printf("MOSQ_EVT_MESSAGE client %s user %s\n", mosquitto_client_id(ed->client), mosquitto_client_username(ed->client));
+	printf("%d %lu\n", ed->payloadlen, (long unsigned) ed->payload);
+	rc = ydb_cip(&ci, response, mosquitto_client_id(ed->client), mosquitto_client_username(ed->client) ? mosquitto_client_username(ed->client) : "", ed->topic, ed->payload? ed->payload : "");
+	mosquitto_log_printf(MOSQ_LOG_INFO,"Result: %d", rc);
+	resp_2_send();
+	return MOSQ_ERR_SUCCESS;*/
 }
 
-static int callback_tick(int event, void *event_data, void *userdata) {
-	int rc;
-	static ci_name_descriptor ci = {{sizeof("TICK")-1, "TICK"},NULL};
-	rc = ydb_cip(&ci, resp);
-	if (resp[0]) {
+static int callback_tick(int event, void *event_data, void *userdata) 
+{
+	int ic_result;
+	static ci_name_descriptor tick_ic_name_descriptor = {{sizeof("TICK")-1, "TICK"},NULL};
+	
+	ic_result = ydb_cip(&tick_ic_name_descriptor, response);
+	
+	if (response[0]) {
 		mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_TICK");
 		resp_2_send();
 	}
-	return rc;
+	// mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_TICK");
+	
+	return ic_result;
 }
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
 {
 	mosquitto_log_printf(MOSQ_LOG_INFO, "mosquitto_plugin_version\n");
-	for(int i=0; i<supported_version_count; i++)
+	
+	for(int i=0; i<supported_version_count; i++) {
 		if(supported_versions[i] == 5)
 			return 5;
+	}
+	
 	return -1;
 }
 
 char ci_fn[64];
-
+ 
 int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, struct mosquitto_opt *opts, int opt_count)
 {
 	int rc;
@@ -200,7 +165,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	FILE * ci_fp;
 	mosq_pid = identifier;
 	
-	if (!(resp = malloc(1000000)))
+	if (!(response = malloc(1000000)))
 		return MOSQ_ERR_NOMEM;
 	
 	// Optionen auswerten
@@ -212,7 +177,12 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		else if (!strcmp(opts[i].key, "rou"))
 			rou = opts[i].value, mosquitto_log_printf(MOSQ_LOG_INFO, "Routine '%s'\n", rou);
 	}
-
+	
+	//setenv("ydb_dir", "/home/wbantel/.yottadb", 1);
+	//setenv("ydb_gbldir", "/home/wbantel/.yottadb/r1.24_x86_64/g/yottadb.gld", 1);
+	//setenv("ydb_routines", "/home/wbantel/.yottadb/r1.24_x86_64/o*(/home/wbantel/.yottadb/r1.24_x86_64/r /home/wbantel/.yottadb/r) /usr/local/lib/yottadb/r124/plugin/o/_ydbposix.so /usr/local/lib/yottadb/r124/libyottadbutil.so /usr/local/lib/yottadb/r124/libyottadb.so", 1);
+	//setenv("ydb_rel", "r1.24_x86_64", 1);
+	
 	sprintf(ci_fn, "/tmp/mosquitto-ydb-%d.ci", getpid());
 	printf("%s\n", ci_fn);
 	ci_fp = fopen(ci_fn, "w");
@@ -237,8 +207,8 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	mosquitto_callback_register(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_basic_auth, NULL, *user_data)
 	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, callback_acl_check, NULL, *user_data)
 	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
-	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL, *user_data)
-	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
+	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL, *user_data);
+	//|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data)
 }
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
@@ -251,6 +221,4 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL);
 	// ||mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL)
-	
-
 }
