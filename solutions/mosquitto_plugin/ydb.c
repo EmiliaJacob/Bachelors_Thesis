@@ -51,7 +51,9 @@ static int callback_acl_check(int event, void *event_data, void *userdata)
 	static ci_name_descriptor acl_ci_name_descriptor = {{sizeof("ACL")-1, "ACL"},NULL};
 	int ci_result, ci_return = 1;
 	
-	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_ACL_CHECK topic %s acc %d msg %s\n", acl_event_data->topic, acl_event_data->access, acl_event_data->payload);
+	mosquitto_log_printf(MOSQ_LOG_INFO, "\n");
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------ACL CALLBACK------------");
+	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_ACL_CHECK topic %s acc %d msg %s", acl_event_data->topic, acl_event_data->access, acl_event_data->payload);
 	
 	ci_result = ydb_cip(
 		&acl_ci_name_descriptor, 
@@ -65,7 +67,6 @@ static int callback_acl_check(int event, void *event_data, void *userdata)
 		response
 	);
 	
-	mosquitto_log_printf(MOSQ_LOG_INFO, "------------ACL CALLBACK------------");
 	mosquitto_log_printf(MOSQ_LOG_INFO, "ACCESS TYPE=%d", acl_event_data->access);
 	mosquitto_log_printf(MOSQ_LOG_INFO, "ci_result=%d ci_return=%d   '%d", ci_result, ci_return, *response);
 	mosquitto_log_printf(MOSQ_LOG_INFO, "------------ACL CALLBACK------------\n");

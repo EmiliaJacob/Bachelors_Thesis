@@ -12,7 +12,7 @@ AUTH(clid,user,pass) ; liefert 0 zurueck falls authentifizierung erfolgreich ver
 ACL(clid,user,access,topic,payloadlen,payload,resp)
 	new (clid,user,access,topic,payloadlen,payload,resp) ; alle anderen lokalen vars bis auf die parameter werden im aktuellen scope resettet. das bringt bessere performance
 	set ok=12 ;MOSQ_ERR_ACL_DENIED -> entsprechender mosquitto fehlercode
-	if access=4 do  ;;;; SUBSCRIBE
+	if access=4 do  ;;;; SUBSCRIBE; Die Clients muessen eine unterschiedliche ID haben, sonst Endlosschleife. ;
 	. if topic="chat" do ; es wird aktuell nur bei subscriptions auf das topic chat die status var auf erfolg gesetzt. ;
 	. . set ok=0
 	. . do spool^MOSQUITTO("m","","chat",clid_" has joined") ; als ziel fuer das spooling wird die lokale variable m gewaehlt. sie ist wahrscheinlich im shared memory zusammen mit den statischen variabeln des c triggers
@@ -32,3 +32,4 @@ ACL(clid,user,access,topic,payloadlen,payload,resp)
 	;
 	; TODO: eventuell die mosquitto fehlercodes als constante speichern oder passen
 	; TODO: Es kann mom nicht das mqttfetch-response topic subscribiert werden
+	; TODO: ACL config in entsprechende config file auslagern
