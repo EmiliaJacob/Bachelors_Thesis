@@ -37,8 +37,10 @@ static int callback_basic_auth(int event, void *event_data, void *userdata)
 		basic_auth_event_data->password ? basic_auth_event_data->password : ""
 	);
 	
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------AUTH CALLBACK------------");
 	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_BASIC_AUTH %s / %s", basic_auth_event_data->username, basic_auth_event_data->password);
 	mosquitto_log_printf(MOSQ_LOG_INFO, "auth: %d '%d'", ci_result, ci_return);
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------AUTH CALLBACK------------\n");
 
 	return ci_return == YDB_OK ? MOSQ_ERR_SUCCESS : MOSQ_ERR_AUTH;
 }
@@ -63,7 +65,10 @@ static int callback_acl_check(int event, void *event_data, void *userdata)
 		response
 	);
 	
-	mosquitto_log_printf(MOSQ_LOG_INFO, "rc=%d rc2=%d   '%d'\n", ci_result, ci_return, *response);
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------ACL CALLBACK------------");
+	mosquitto_log_printf(MOSQ_LOG_INFO, "ACCESS TYPE=%d", acl_event_data->access);
+	mosquitto_log_printf(MOSQ_LOG_INFO, "ci_result=%d ci_return=%d   '%d", ci_result, ci_return, *response);
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------ACL CALLBACK------------\n");
 	
 	if (ci_result == YDB_OK && ci_return == YDB_OK)
 		resp_2_send();
@@ -74,8 +79,10 @@ static int callback_acl_check(int event, void *event_data, void *userdata)
 static int callback_disconnect(int event, void *event_data, void *userdata) 
 {
 	struct mosquitto_evt_disconnect * disconnect_event_data = event_data;
-	
+
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------DISCONNECT CALLBACK------------");
 	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_DISCONNECT %s\n", mosquitto_client_id(disconnect_event_data->client));
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------DISCONNECT CALLBACK------------\n");
 	
 	return MOSQ_ERR_SUCCESS;
 }
@@ -84,6 +91,8 @@ void resp_2_send()
 {
 	char *i_p= response+1, *t_p, *m_p;
 	int i_l, t_l, m_l, n= response[0];
+	
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------RESP_2_SEND------------");
 	
 	mosquitto_log_printf(MOSQ_LOG_INFO, "Sende %d Nachrichten", n);
 	
@@ -105,6 +114,8 @@ void resp_2_send()
 		
 		i_p = m_p + 256 * *m_p + *(m_p + 1) + 3;
 	}
+	
+	mosquitto_log_printf(MOSQ_LOG_INFO, "------------RESP_2_SEND------------\n");
 	
 	response[0] = '\0';
 }
@@ -136,7 +147,9 @@ static int callback_tick(int event, void *event_data, void *userdata)
 	ic_result = ydb_cip(&tick_ic_name_descriptor, response);
 	
 	if (response[0]) {
+		mosquitto_log_printf(MOSQ_LOG_INFO, "------------TICK CALLBACK------------");
 		mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_TICK");
+		mosquitto_log_printf(MOSQ_LOG_INFO, "------------TICK CALLBACK------------\n");
 		resp_2_send();
 	}
 	// mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_TICK");
