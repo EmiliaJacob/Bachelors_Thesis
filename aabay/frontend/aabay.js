@@ -1,4 +1,6 @@
-var m;
+
+ 
+ var m;
 window.onload = async function() {
 	m = new mqtt_fetch("aabay");
 	await m.init("localhost", 1884); // MQTT over websockets!!
