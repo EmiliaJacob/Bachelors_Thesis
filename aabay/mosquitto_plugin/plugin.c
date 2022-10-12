@@ -17,6 +17,8 @@
 
 #include <libyottadb.h>
 
+//#include <ydb-global.h>
+
 void convert_and_send_spooled_messages();
 
 #define UNUSED(A) (void)(A)
@@ -26,7 +28,7 @@ static char *spooled_messages;
 
 static int callback_basic_auth(int event, void *event_data, void *userdata) 
  {
-	struct mosquitto_evt_basic_auth * basic_auth_event_data = event_data;
+	struct mosquitto_evt_basic_auth * basic_auth_event_data = *((mosquitto_evt_basic_auth*)event_data);
  	
  	mosquitto_log_printf(MOSQ_LOG_INFO, "basic_auth callback received: %s / %s", basic_auth_event_data->username, basic_auth_event_data->password);
 		
