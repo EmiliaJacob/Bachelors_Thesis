@@ -27,6 +27,11 @@ void convert_and_send_spooled_messages();
 static mosquitto_plugin_id_t * mosq_pid = NULL;
 static char *spooled_messages;
 
+static const int QOS_SPOOL = 0;
+static const bool RETAIN_SPOOL = false;
+static mosquitto_property *PROPERTIES_SPOOL = NULL;
+
+
 static int callback_basic_auth(int event, void *event_data, void *userdata) 
  {
 	struct mosquitto_evt_basic_auth * basic_auth_event_data = (mosquitto_evt_basic_auth*)event_data;
@@ -156,7 +161,7 @@ int get_and_send_spooled_messages(){
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){ // Lock kann nicht in Wartezeit uebernommen werden
+	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){ 
 		dummy[iterator] = iterator;		
 		dummy[iterator]["t"] = (string)_mqttspool[iterator]["t"];
 		dummy[iterator]["c"] = (string)_mqttspool[iterator]["c"];
@@ -169,21 +174,14 @@ int get_and_send_spooled_messages(){
 	iterator = "";
 
 	while(iterator=dummy[iterator].nextSibling(), iterator!=""){
-		// TODO return ERR Messages everywhere
-
-		int qos = 1; // TODO: Move evtl elsewhere
-		bool retain = true;
-		mosquitto_property *properties = NULL;
-
 		int result = mosquitto_broker_publish_copy(
-			//((string)dummy[iterator]["c"]).c_str(), sendet Message nur an C mit entpsrechender ID
 			NULL,
 			((string)dummy[iterator]["t"]).c_str(),
-			strlen(((string)dummy[iterator]["m"]).c_str()), // \0 fuer message nicht relevant
+			strlen(((string)dummy[iterator]["m"]).c_str()), 
 			((string)dummy[iterator]["m"]).c_str(),
-			qos,
-			retain,
-			properties
+			QOS_SPOOL,
+			RETAIN_SPOOL,
+			PROPERTIES_SPOOL
 		);
 
 		if (result != MOSQ_ERR_SUCCESS) {
