@@ -14,10 +14,9 @@
 #include "mosquitto_plugin.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
+#include <iostream>
 
-#include <libyottadb.h>
-
-//#include <ydb-global.h>
+#include "ydb-global.h"
 
 void convert_and_send_spooled_messages();
 
@@ -28,17 +27,17 @@ static char *spooled_messages;
 
 static int callback_basic_auth(int event, void *event_data, void *userdata) 
  {
-	struct mosquitto_evt_basic_auth * basic_auth_event_data = *((mosquitto_evt_basic_auth*)event_data);
+	struct mosquitto_evt_basic_auth * basic_auth_event_data = (mosquitto_evt_basic_auth*)event_data;
  	
  	mosquitto_log_printf(MOSQ_LOG_INFO, "basic_auth callback received: %s / %s", basic_auth_event_data->username, basic_auth_event_data->password);
 		
-	if(!basic_auth_event_data->username && !basic_auth_event_data->password) // TODO: durch strcmp ersetzen
-		return MOSQ_ERR_SUCCESS;
+	// if(!basic_auth_event_data->username && !basic_auth_event_data->password) // TODO: durch strcmp ersetzen
+	return MOSQ_ERR_SUCCESS;
 	
-	if(basic_auth_event_data->username == "felix" && basic_auth_event_data->password == "jacob")
-		return MOSQ_ERR_SUCCESS;
+	// if(basic_auth_event_data->username == "felix" && basic_auth_event_data->password == "jacob")
+		// return MOSQ_ERR_SUCCESS;
 	
-	return MOSQ_ERR_AUTH;
+	// return MOSQ_ERR_AUTH;
 }
 
 static int callback_acl_check(int event, void *event_data, void *userdata) 
@@ -47,39 +46,40 @@ static int callback_acl_check(int event, void *event_data, void *userdata)
  	// TODO: return value von callins checken
  	
  	int status_code = MOSQ_ERR_ACL_DENIED;
-	struct mosquitto_evt_acl_check * acl_event_data = event_data;
+	struct mosquitto_evt_acl_check * acl_event_data = (mosquitto_evt_acl_check*)event_data;
 	
 	mosquitto_log_printf(MOSQ_LOG_INFO, "acl_check callback received topic %s acc %d msg %s", acl_event_data->topic, acl_event_data->access, acl_event_data->payload);
 	
-	if(acl_event_data->access == MOSQ_ACL_SUBSCRIBE) {
-		if(acl_event_data->topic == "chat") {
-			// do spool^MOSQUITTO("m","","chat",clid_" has joined") ; als ziel fuer das spooling wird die lokale variable m gewaehlt. sie ist wahrscheinlich im shared memory zusammen mit den statischen variabeln des c triggers
-			status_code = MOSQ_ERR_SUCCESS;
-		}
-	}
-	
-	if(acl_event_data->access == MOSQ_ACL_WRITE) {
-		
-		// . do spool^MOSQUITTO("m",clid,topic,"ok") ; mqttfetch-response wird der lokale var m hinzugefuegt
-		// . do spool^MOSQUITTO("m","","chat",payload) ; chatnachricht des clients wird an alle anderen chats subscriber releast
-		status_code = MOSQ_ERR_SUCCESS;
-	}
-	
-	if(acl_event_data->access == MOSQ_ACL_READ) {
-		status_code = MOSQ_ERR_SUCCESS;
-	}
+//	if(acl_event_data->access == MOSQ_ACL_SUBSCRIBE) {
+//		if(acl_event_data->topic == "chat") {
+//			// do spool^MOSQUITTO("m","","chat",clid_" has joined") ; als ziel fuer das spooling wird die lokale variable m gewaehlt. sie ist wahrscheinlich im shared memory zusammen mit den statischen variabeln des c triggers
+//			status_code = MOSQ_ERR_SUCCESS;
+//		}
+//	}
+//	
+//	if(acl_event_data->access == MOSQ_ACL_WRITE) {
+//		
+//		// . do spool^MOSQUITTO("m",clid,topic,"ok") ; mqttfetch-response wird der lokale var m hinzugefuegt
+//		// . do spool^MOSQUITTO("m","","chat",payload) ; chatnachricht des clients wird an alle anderen chats subscriber releast
+//		status_code = MOSQ_ERR_SUCCESS;
+//	}
+//	
+//	if(acl_event_data->access == MOSQ_ACL_READ) {
+//		status_code = MOSQ_ERR_SUCCESS;
+//	}
 	
 	// set resp=$$convert^MOSQUITTO(.m) ; response wird auf alle gespoolten nachrichten in stringform gesetzt
 	
 	// if (ci_success == YDB_OK && ci_return_val == YDB_OK)
 	// 	resp_2_send();
 	
+	status_code = MOSQ_ERR_SUCCESS;
 	return status_code;
 }
 
 static int callback_disconnect(int event, void *event_data, void *userdata) 
 {
-	struct mosquitto_evt_disconnect * disconnect_event_data = event_data;
+	struct mosquitto_evt_disconnect * disconnect_event_data = (mosquitto_evt_disconnect*)event_data;
 
 	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_DISCONNECT %s\n", mosquitto_client_id(disconnect_event_data->client));
 	
@@ -138,23 +138,49 @@ void convert_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;*/
 }
 
+void read_and_send_spooled_messages(){
+
+	c_ydb_global _mqttspool("^ms");
+	c_ydb_global dummy("dummy");
+
+	string iterator = "";
+
+	if(!_mqttspool.hasChilds())
+		return;
+
+	_mqttspool.lock_inc(1);
+
+	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){
+		dummy[iterator] = iterator;		
+		dummy[iterator]["t"] = (string)_mqttspool[iterator]["t"];
+		dummy[iterator]["c"] = (string)_mqttspool[iterator]["c"];
+		dummy[iterator]["m"] = (string)_mqttspool[iterator]["m"];
+	}
+
+	_mqttspool.kill();
+	_mqttspool.lock_dec();
+
+	cout << "hello" << endl;
+	cout << dummy[1]["u"] << endl;
+
+	iterator = "";
+	while(iterator=dummy[iterator].nextSibling(), iterator!=""){
+		cout <<	dummy[iterator] << endl;
+		cout << dummy[iterator]["t"] << endl;
+		cout << dummy[iterator]["c"] << endl;
+		cout << dummy[iterator]["m"] << endl;
+	}
+	
+	dummy.kill();
+}
+
+
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	int ic_result;
-	static ci_name_descriptor tick_ic_name_descriptor = {{sizeof("TICK")-1, "TICK"},NULL};
-	
-	ic_result = ydb_cip(&tick_ic_name_descriptor, spooled_messages);
-	
-	if (spooled_messages[0]) {
-		mosquitto_log_printf(MOSQ_LOG_INFO, "------------TICK CALLBACK------------");
-		mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_TICK");
-		mosquitto_log_printf(MOSQ_LOG_INFO, "------------TICK CALLBACK------------\n");
-		convert_and_send_spooled_messages();
-	}
-	// mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_TICK");
-	
-	return ic_result;
+	read_and_send_spooled_messages();
+	return MOSQ_ERR_SUCCESS;
 }
+
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
 {
@@ -172,13 +198,13 @@ char ci_fn[64];
  
 int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, struct mosquitto_opt *opts, int opt_count)
 {
-	int rc;
+	//int rc;
 	char * rou;
 	FILE * ci_fp;
 	mosq_pid = identifier;
 	
-	if (!(spooled_messages = malloc(1000000)))
-		return MOSQ_ERR_NOMEM;
+//	if (!(spooled_messages = malloc(1000000)))
+//		return MOSQ_ERR_NOMEM;
 	
 	// Optionen auswerten
 	mosquitto_log_printf(MOSQ_LOG_INFO, "init %d\n", opt_count);
@@ -206,8 +232,8 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	);
 	fclose(ci_fp);
 	setenv("ydb_ci", ci_fn, 1);
-	rc = ydb_init();
-	mosquitto_log_printf(MOSQ_LOG_INFO,"ydb_init: %d\n", rc);
+//	rc = ydb_init();
+//	mosquitto_log_printf(MOSQ_LOG_INFO,"ydb_init: %d\n", rc);
 	
 	//user_data beschreiben - derzeit nicht genutzt, nur zum Lernen!
 	char userdata_text[] = "123";

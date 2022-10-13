@@ -8,7 +8,7 @@ prefix=$(shell pwd)
 cfg=mosquitto_yottadb.conf
 
 plugin.so: plugin.c
-			g++ -Wall -I $(mosquitto)/include  -I$(ydb) -L$(ydb) -shared -fPIC plugin.c -o plugin.so  -lyottadb -Wl,-rpath=$(ydb)
+			g++ -Wall -I $(mosquitto)/include  -I$(ydb) -L$(ydb) ydb-global.h ydb-global.o -shared -fPIC plugin.c -o plugin.so  -lyottadb -Wl,-rpath=$(ydb)
 
 mosquitto_yottadb.conf:
 			echo "Create $@ file."
