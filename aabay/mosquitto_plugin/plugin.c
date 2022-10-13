@@ -14,13 +14,12 @@
 #include "mosquitto_plugin.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
+
 // c++ includes
 #include <iostream>
 #include <string>
 
 #include "ydb-global.h"
-
-void convert_and_send_spooled_messages();
 
 #define UNUSED(A) (void)(A)
 
@@ -31,6 +30,56 @@ static const int QOS_SPOOL = 0;
 static const bool RETAIN_SPOOL = false;
 static mosquitto_property *PROPERTIES_SPOOL = NULL;
 
+int get_and_send_spooled_messages();
+
+int get_and_send_spooled_messages(){
+
+	c_ydb_global _mqttspool("^ms");
+	c_ydb_global dummy("dummy");
+
+	string iterator = "";
+
+	if(!_mqttspool.hasChilds())
+		return MOSQ_ERR_SUCCESS;
+
+	int lock_result =_mqttspool.lock_inc(0);
+
+	if(lock_result != YDB_OK) {
+		return MOSQ_ERR_SUCCESS;
+	}
+
+	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){ 
+		dummy[iterator] = iterator;		
+		dummy[iterator]["topic"] = (string)_mqttspool[iterator]["topic"];
+		dummy[iterator]["clientid"] = (string)_mqttspool[iterator]["clientid"];
+		dummy[iterator]["message"] = (string)_mqttspool[iterator]["message"];
+	}
+
+	_mqttspool.kill();
+	_mqttspool.lock_dec();
+
+	iterator = "";
+
+	while(iterator=dummy[iterator].nextSibling(), iterator!=""){
+		int result = mosquitto_broker_publish_copy(
+			NULL,
+			((string)dummy[iterator]["topic"]).c_str(),
+			strlen(((string)dummy[iterator]["message"]).c_str()), 
+			((string)dummy[iterator]["message"]).c_str(),
+			QOS_SPOOL,
+			RETAIN_SPOOL,
+			PROPERTIES_SPOOL
+		);
+
+		if (result != MOSQ_ERR_SUCCESS) {
+			dummy.kill();
+			return result;
+		}
+	}
+	
+	dummy.kill();
+	return MOSQ_ERR_SUCCESS;
+}
 
 static int callback_basic_auth(int event, void *event_data, void *userdata) 
  {
@@ -93,40 +142,7 @@ static int callback_disconnect(int event, void *event_data, void *userdata)
 	return MOSQ_ERR_SUCCESS;
 }
 
-void convert_and_send_spooled_messages() 
-{
-	char *i_p= spooled_messages+1, *t_p, *m_p;
-	int i_l, t_l, m_l, n= spooled_messages[0];
-	
-	mosquitto_log_printf(MOSQ_LOG_INFO, "------------RESP_2_SEND------------");
-	
-	mosquitto_log_printf(MOSQ_LOG_INFO, "Sende %d Nachrichten", n);
-	
-	for (int i = 0; i < n; i++) {
-		mosquitto_log_printf(MOSQ_LOG_INFO, "Nachricht %d:",i);
-		 
-		i_l = 256 * *i_p + *(i_p + 1);
-		mosquitto_log_printf(MOSQ_LOG_INFO, " %d '%s'", i_l, i_p + 2);
-		
-		t_p = i_p + i_l + 3;
-		t_l = 256 * *t_p + *(t_p + 1);
-		mosquitto_log_printf(MOSQ_LOG_INFO, " %d '%s'", t_l, t_p + 2);
-		
-		m_p = t_p + t_l + 3;
-		m_l = 256 * *m_p + *(m_p + 1);
-		mosquitto_log_printf(MOSQ_LOG_INFO, " %d '%s'", m_l, m_p + 2);
-		
-		mosquitto_broker_publish_copy(i_l ? i_p + 2 : NULL, t_p + 2, m_l, m_p + 2, 0, 0, NULL);
-		
-		i_p = m_p + 256 * *m_p + *(m_p + 1) + 3;
-	}
-	
-	mosquitto_log_printf(MOSQ_LOG_INFO, "------------RESP_2_SEND------------\n");
-	
-	spooled_messages[0] = '\0';
-}
-
- static int callback_message(int event, void *event_data, void *userdata)
+static int callback_message(int event, void *event_data, void *userdata)
 {
 	/*
 	 unused - nicht verwendet!!!
@@ -145,54 +161,6 @@ void convert_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;*/
 }
 
-int get_and_send_spooled_messages(){
-
-	c_ydb_global _mqttspool("^ms");
-	c_ydb_global dummy("dummy");
-
-	string iterator = "";
-
-	if(!_mqttspool.hasChilds())
-		return MOSQ_ERR_SUCCESS;
-
-	int lock_result =_mqttspool.lock_inc(0);
-
-	if(lock_result != YDB_OK) {
-		return MOSQ_ERR_SUCCESS;
-	}
-
-	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){ 
-		dummy[iterator] = iterator;		
-		dummy[iterator]["t"] = (string)_mqttspool[iterator]["t"];
-		dummy[iterator]["c"] = (string)_mqttspool[iterator]["c"];
-		dummy[iterator]["m"] = (string)_mqttspool[iterator]["m"];
-	}
-
-	_mqttspool.kill();
-	_mqttspool.lock_dec();
-
-	iterator = "";
-
-	while(iterator=dummy[iterator].nextSibling(), iterator!=""){
-		int result = mosquitto_broker_publish_copy(
-			NULL,
-			((string)dummy[iterator]["t"]).c_str(),
-			strlen(((string)dummy[iterator]["m"]).c_str()), 
-			((string)dummy[iterator]["m"]).c_str(),
-			QOS_SPOOL,
-			RETAIN_SPOOL,
-			PROPERTIES_SPOOL
-		);
-
-		if (result != MOSQ_ERR_SUCCESS) {
-			dummy.kill();
-			return result;
-		}
-	}
-	
-	dummy.kill();
-	return MOSQ_ERR_SUCCESS;
-}
 
 
 static int callback_tick(int event, void *event_data, void *userdata) 
