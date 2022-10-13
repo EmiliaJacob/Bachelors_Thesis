@@ -14,7 +14,9 @@
 #include "mosquitto_plugin.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
+// c++ includes
 #include <iostream>
+#include <string>
 
 #include "ydb-global.h"
 
@@ -138,7 +140,7 @@ void convert_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;*/
 }
 
-void read_and_send_spooled_messages(){
+void get_and_send_spooled_messages(){
 
 	c_ydb_global _mqttspool("^ms");
 	c_ydb_global dummy("dummy");
@@ -160,15 +162,36 @@ void read_and_send_spooled_messages(){
 	_mqttspool.kill();
 	_mqttspool.lock_dec();
 
-	cout << "hello" << endl;
-	cout << dummy[1]["u"] << endl;
-
 	iterator = "";
+
 	while(iterator=dummy[iterator].nextSibling(), iterator!=""){
-		cout <<	dummy[iterator] << endl;
-		cout << dummy[iterator]["t"] << endl;
-		cout << dummy[iterator]["c"] << endl;
-		cout << dummy[iterator]["m"] << endl;
+		// TODO return ERR Messages everywhere
+
+		int qos = 1; // TODO: Move evtl elsewhere
+		bool retain = true;
+		mosquitto_property *properties = NULL;
+
+		cout << ((string)dummy[iterator]["c"]).c_str() << endl;
+		cout << ((string)dummy[iterator]["t"]).c_str() << endl;
+		cout << ((string)dummy[iterator]["m"]).c_str() << endl;
+		cout << sizeof(((string)dummy[iterator]["m"]).c_str()) << endl;
+
+		int status_message = mosquitto_broker_publish_copy(
+			//((string)dummy[iterator]["c"]).c_str(), sendet Message nur an C mit entpsrechender ID
+			NULL,
+			((string)dummy[iterator]["t"]).c_str(),
+			strlen(((string)dummy[iterator]["m"]).c_str()), // \0 fuer message nicht relevant
+			((string)dummy[iterator]["m"]).c_str(),
+			qos,
+			retain,
+			properties
+		);
+
+		if(status_message != MOSQ_ERR_SUCCESS)
+			cout << status_message << endl;
+		else{
+			cout << "done" << endl;
+		}
 	}
 	
 	dummy.kill();
@@ -177,7 +200,7 @@ void read_and_send_spooled_messages(){
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	read_and_send_spooled_messages();
+	get_and_send_spooled_messages();
 	return MOSQ_ERR_SUCCESS;
 }
 
@@ -243,7 +266,6 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	// Callback-Fkt registrieren
 	return
 	mosquitto_callback_register(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_basic_auth, NULL, *user_data)
-	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_ACL_CHECK, callback_acl_check, NULL, *user_data)
 	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL, *user_data);
 	//|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data)
@@ -255,7 +277,6 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 
 	// mosq_pid aus mosquitto_plugin_init!!!
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
-	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_ACL_CHECK, callback_acl_check, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL);
 	// ||mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL)
