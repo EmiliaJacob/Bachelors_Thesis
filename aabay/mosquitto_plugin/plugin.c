@@ -150,9 +150,13 @@ int get_and_send_spooled_messages(){
 	if(!_mqttspool.hasChilds())
 		return MOSQ_ERR_SUCCESS;
 
-	_mqttspool.lock_inc(1);
+	int lock_result =_mqttspool.lock_inc(0);
 
-	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){
+	if(lock_result != YDB_OK) {
+		return MOSQ_ERR_SUCCESS;
+	}
+
+	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){ // Lock kann nicht in Wartezeit uebernommen werden
 		dummy[iterator] = iterator;		
 		dummy[iterator]["t"] = (string)_mqttspool[iterator]["t"];
 		dummy[iterator]["c"] = (string)_mqttspool[iterator]["c"];
