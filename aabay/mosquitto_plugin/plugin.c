@@ -140,7 +140,7 @@ void convert_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;*/
 }
 
-void get_and_send_spooled_messages(){
+int get_and_send_spooled_messages(){
 
 	c_ydb_global _mqttspool("^ms");
 	c_ydb_global dummy("dummy");
@@ -148,7 +148,7 @@ void get_and_send_spooled_messages(){
 	string iterator = "";
 
 	if(!_mqttspool.hasChilds())
-		return;
+		return MOSQ_ERR_SUCCESS;
 
 	_mqttspool.lock_inc(1);
 
@@ -171,12 +171,7 @@ void get_and_send_spooled_messages(){
 		bool retain = true;
 		mosquitto_property *properties = NULL;
 
-		cout << ((string)dummy[iterator]["c"]).c_str() << endl;
-		cout << ((string)dummy[iterator]["t"]).c_str() << endl;
-		cout << ((string)dummy[iterator]["m"]).c_str() << endl;
-		cout << sizeof(((string)dummy[iterator]["m"]).c_str()) << endl;
-
-		int status_message = mosquitto_broker_publish_copy(
+		int result = mosquitto_broker_publish_copy(
 			//((string)dummy[iterator]["c"]).c_str(), sendet Message nur an C mit entpsrechender ID
 			NULL,
 			((string)dummy[iterator]["t"]).c_str(),
@@ -187,21 +182,20 @@ void get_and_send_spooled_messages(){
 			properties
 		);
 
-		if(status_message != MOSQ_ERR_SUCCESS)
-			cout << status_message << endl;
-		else{
-			cout << "done" << endl;
+		if (result != MOSQ_ERR_SUCCESS) {
+			dummy.kill();
+			return result;
 		}
 	}
 	
 	dummy.kill();
+	return MOSQ_ERR_SUCCESS;
 }
 
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	get_and_send_spooled_messages();
-	return MOSQ_ERR_SUCCESS;
+	return get_and_send_spooled_messages();
 }
 
 
