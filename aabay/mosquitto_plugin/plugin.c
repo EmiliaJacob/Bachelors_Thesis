@@ -91,29 +91,8 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-int get_and_send_fifo_messages() 
+int receive_mq_message() 
 {
-	// Set maximum number of messages that can be read in one function call
-	// use same header for read and write end with the common values
-	// wo steht dass meherer prozesse die selbe ressource oeffnen koennen?
-
-	//int fd = open("/home/emi/ydbay/aabay/mosquitto_plugin/mqttspool", O_CREAT|O_NONBLOCK, O_RDONLY); // todo: do this only once per plugin
-
-	// if(fd < 0) {
-		// return MOSQ_ERR_SUCCESS;
-	// }
-
-	// cout << "openend fifo" << endl;
-
-	// void *read_buf // TODO: Set to atomic size of fifo
-	// read
-	// struct mq_attr { // TODO: Create user defined values for these
-	// 	long mq_flags;
-	// 	long mq_maxmsg;
-	// 	long mq_msgsize;
-	// 	long mq_curmsgs;
-	// }
-
 	mqd_t mq_d = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 
 	if(mq_d == -1) {
@@ -226,7 +205,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	return get_and_send_fifo_messages();
+	return receive_mq_message();
 	// return get_and_send_spooled_messages();
 }
 
