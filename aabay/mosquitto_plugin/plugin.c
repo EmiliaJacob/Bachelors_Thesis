@@ -15,16 +15,24 @@
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
 
-// c++ includes
+// FIFO 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+// MQ
+#include <mqueue.h> 
+#include <errno.h>
+
+// C++ 
 #include <iostream>
 #include <string>
-
 #include "ydb-global.h"
 
 #define UNUSED(A) (void)(A)
 
 static mosquitto_plugin_id_t * mosq_pid = NULL;
-static char *spooled_messages;
+//static char *spooled_messages;
 
 static const int QOS_SPOOL = 0;
 static const bool RETAIN_SPOOL = false;
@@ -32,8 +40,10 @@ static mosquitto_property *PROPERTIES_SPOOL = NULL;
 
 int get_and_send_spooled_messages();
 
-int get_and_send_spooled_messages(){
+int get_and_send_fifo_messages();
 
+int get_and_send_spooled_messages()
+{
 	c_ydb_global _mqttspool("^ms");
 	c_ydb_global dummy("dummy");
 
@@ -81,6 +91,57 @@ int get_and_send_spooled_messages(){
 	return MOSQ_ERR_SUCCESS;
 }
 
+int get_and_send_fifo_messages() 
+{
+	// Set maximum number of messages that can be read in one function call
+	// use same header for read and write end with the common values
+	// wo steht dass meherer prozesse die selbe ressource oeffnen koennen?
+
+	//int fd = open("/home/emi/ydbay/aabay/mosquitto_plugin/mqttspool", O_CREAT|O_NONBLOCK, O_RDONLY); // todo: do this only once per plugin
+
+	// if(fd < 0) {
+		// return MOSQ_ERR_SUCCESS;
+	// }
+
+	// cout << "openend fifo" << endl;
+
+	// void *read_buf // TODO: Set to atomic size of fifo
+	// read
+	// struct mq_attr { // TODO: Create user defined values for these
+	// 	long mq_flags;
+	// 	long mq_maxmsg;
+	// 	long mq_msgsize;
+	// 	long mq_curmsgs;
+	// }
+
+	mqd_t mq_d = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
+
+	if(mq_d == -1) {
+		int errsv = errno;
+		cout << "open: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
+		return MOSQ_ERR_SUCCESS;
+	}
+
+	struct mq_attr attr;
+
+	if(mq_getattr(mq_d, &attr) == -1) {
+		int errsv = errno;
+		cout << "attr: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
+		return MOSQ_ERR_SUCCESS;
+	}
+
+	char buffer[attr.mq_msgsize];
+	if(mq_receive(mq_d, buffer, attr.mq_msgsize, NULL) == -1) {
+		int errsv = errno;
+		cout << "rcv: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
+		return MOSQ_ERR_SUCCESS;
+	}
+	else {
+		cout << buffer << endl;
+	}
+	return MOSQ_ERR_SUCCESS;
+}
+
 static int callback_basic_auth(int event, void *event_data, void *userdata) 
  {
 	struct mosquitto_evt_basic_auth * basic_auth_event_data = (mosquitto_evt_basic_auth*)event_data;
@@ -96,42 +157,42 @@ static int callback_basic_auth(int event, void *event_data, void *userdata)
 	// return MOSQ_ERR_AUTH;
 }
 
-static int callback_acl_check(int event, void *event_data, void *userdata) 
- {
- 	// TODO: ACL file definieren
- 	// TODO: return value von callins checken
+// static int callback_acl_check(int event, void *event_data, void *userdata) 
+//  {
+//  	// TODO: ACL file definieren
+//  	// TODO: return value von callins checken
  	
- 	int status_code = MOSQ_ERR_ACL_DENIED;
-	struct mosquitto_evt_acl_check * acl_event_data = (mosquitto_evt_acl_check*)event_data;
+//  	int status_code = MOSQ_ERR_ACL_DENIED;
+// 	struct mosquitto_evt_acl_check * acl_event_data = (mosquitto_evt_acl_check*)event_data;
 	
-	mosquitto_log_printf(MOSQ_LOG_INFO, "acl_check callback received topic %s acc %d msg %s", acl_event_data->topic, acl_event_data->access, acl_event_data->payload);
+// 	mosquitto_log_printf(MOSQ_LOG_INFO, "acl_check callback received topic %s acc %d msg %s", acl_event_data->topic, acl_event_data->access, acl_event_data->payload);
 	
-//	if(acl_event_data->access == MOSQ_ACL_SUBSCRIBE) {
-//		if(acl_event_data->topic == "chat") {
-//			// do spool^MOSQUITTO("m","","chat",clid_" has joined") ; als ziel fuer das spooling wird die lokale variable m gewaehlt. sie ist wahrscheinlich im shared memory zusammen mit den statischen variabeln des c triggers
-//			status_code = MOSQ_ERR_SUCCESS;
-//		}
-//	}
-//	
-//	if(acl_event_data->access == MOSQ_ACL_WRITE) {
-//		
-//		// . do spool^MOSQUITTO("m",clid,topic,"ok") ; mqttfetch-response wird der lokale var m hinzugefuegt
-//		// . do spool^MOSQUITTO("m","","chat",payload) ; chatnachricht des clients wird an alle anderen chats subscriber releast
-//		status_code = MOSQ_ERR_SUCCESS;
-//	}
-//	
-//	if(acl_event_data->access == MOSQ_ACL_READ) {
-//		status_code = MOSQ_ERR_SUCCESS;
-//	}
+// //	if(acl_event_data->access == MOSQ_ACL_SUBSCRIBE) {
+// //		if(acl_event_data->topic == "chat") {
+// //			// do spool^MOSQUITTO("m","","chat",clid_" has joined") ; als ziel fuer das spooling wird die lokale variable m gewaehlt. sie ist wahrscheinlich im shared memory zusammen mit den statischen variabeln des c triggers
+// //			status_code = MOSQ_ERR_SUCCESS;
+// //		}
+// //	}
+// //	
+// //	if(acl_event_data->access == MOSQ_ACL_WRITE) {
+// //		
+// //		// . do spool^MOSQUITTO("m",clid,topic,"ok") ; mqttfetch-response wird der lokale var m hinzugefuegt
+// //		// . do spool^MOSQUITTO("m","","chat",payload) ; chatnachricht des clients wird an alle anderen chats subscriber releast
+// //		status_code = MOSQ_ERR_SUCCESS;
+// //	}
+// //	
+// //	if(acl_event_data->access == MOSQ_ACL_READ) {
+// //		status_code = MOSQ_ERR_SUCCESS;
+// //	}
 	
-	// set resp=$$convert^MOSQUITTO(.m) ; response wird auf alle gespoolten nachrichten in stringform gesetzt
+// 	// set resp=$$convert^MOSQUITTO(.m) ; response wird auf alle gespoolten nachrichten in stringform gesetzt
 	
-	// if (ci_success == YDB_OK && ci_return_val == YDB_OK)
-	// 	resp_2_send();
+// 	// if (ci_success == YDB_OK && ci_return_val == YDB_OK)
+// 	// 	resp_2_send();
 	
-	status_code = MOSQ_ERR_SUCCESS;
-	return status_code;
-}
+// 	status_code = MOSQ_ERR_SUCCESS;
+// 	return status_code;
+// }
 
 static int callback_disconnect(int event, void *event_data, void *userdata) 
 {
@@ -165,7 +226,8 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	return get_and_send_spooled_messages();
+	return get_and_send_fifo_messages();
+	// return get_and_send_spooled_messages();
 }
 
 
