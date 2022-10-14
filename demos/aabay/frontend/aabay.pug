@@ -1,0 +1,44 @@
+doctype html
+html
+	head
+		title AAbay
+		link(rel="stylesheet",href="aabay.css")
+		script(src="mqttws31.js")
+		script(src="mqtt-fetch.js")
+		script(src="aabay.js")
+	body
+		div#head
+			div(align="right")
+				|Nickname: 
+				input#nickname
+		div#menu
+			h2 Arikelliste
+			ul#list
+		div#content
+			h2 Artikel
+			table
+				tr
+					th Artikel-ID:
+					td#id &nbsp;
+				tr
+					td Artikel:
+					td#title &nbsp;
+				tr
+					td Gebot:
+					td
+						text#bid &nbsp;
+						| &nbsp;&euro;
+				tr
+					td Text:
+					td#text &nbsp;
+				tr
+					th Bieten:
+					td
+						input#my-bid(type="number",step="1")
+						input#send(type="button",value="Absenden")
+				tr
+					td Antwort:
+					td#response &nbsp;
+				tr
+					td Status:
+					td#status &nbsp;

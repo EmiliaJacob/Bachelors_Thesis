@@ -1,0 +1,4 @@
+ydb=$(shell pkg-config --variable=prefix yottadb)
+
+tt: ydb.c
+			gcc -Wall -I$(ydb) -L$(ydb) -o test_c c_ydb.c -lyottadb 
