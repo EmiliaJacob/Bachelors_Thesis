@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include "mosquitto_broker.h"
 #include "mosquitto_plugin.h"
+// #include "mosquitto_internal.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
 
@@ -28,6 +29,8 @@
 #include <iostream>
 #include <string>
 #include "ydb-global.h"
+#include <regex>
+#include "json.h"
 
 #define UNUSED(A) (void)(A)
 
@@ -123,11 +126,29 @@ int receive_mq_messages()
 
 static int callback_message(int event, void *event_data, void *userdata)
 {
+// 	struct mosquitto_evt_message {
+// 	void *future;
+// 	struct mosquitto *client;
+// 	char *topic;
+// 	void *payload;
+// 	mosquitto_property *properties;
+// 	char *reason_string;
+// 	uint32_t payloadlen;
+// 	uint8_t qos;
+// 	uint8_t reason_code;
+// 	bool retain;
+// 	void *future2[4];
+// };
 
-	// struct mosquitto_evt_message * ed = event_data;
-	char *topic = event_data.topic;
-	// char *topic = ed->topic;
-	cout << "BoOm" << endl;
+	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data;
+	string topic(ed->topic);
+	// string response;
+	const char *clid = mosquitto_client_id(ed->client);
+	Json::Value response;
+	response["topic"] = regex_replace(topic, regex("/fr/"), "/to/");
+	response["payload"] = regex_replace(topic, regex("/fr/"), "/to/");
+
+	
 	return MOSQ_ERR_SUCCESS;
 }
 
