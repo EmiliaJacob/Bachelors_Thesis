@@ -18,13 +18,13 @@ exports.aabay = function(topic, message) {
 
 	var response = [{topic: topic.replace("/fr/","/to/"), payload: {rc: 0}}]; // Index 0: mqtt-fetch-response
 	o = JSON.parse(message);
-	console.log(o);
-	if (o.action == "get_articles") {
+	
+	if (o.action == "get_articles") { // IN DB
 		response[0].payload.articles = [];
 		for (i in articles)
 			response[0].payload.articles.push({id: i, title: articles[i].title, bid:articles[i].bid});
 	}
-	else if (o.action == "get_article") {
+	else if (o.action == "get_article") { // IN DB
 		console.log(typeof o.id);
 		if (typeof o.id == "number" && articles[o.id] != undefined)
 			response[0].payload.article = {id: o.id, title: articles[o.id].title, bid:articles[o.id].bid, text: articles[o.id].text};

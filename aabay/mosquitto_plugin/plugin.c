@@ -40,11 +40,11 @@ static mosquitto_property *PROPERTIES_SPOOL = NULL;
 
 int get_and_send_spooled_messages();
 
-int get_and_send_fifo_messages();
+int receive_mq_messages();
 
 int get_and_send_spooled_messages()
 {
-	c_ydb_global _mqttspool("^ms");
+	c_ydb_global _mqttspool("^ms"); // TODO: Make static
 	c_ydb_global dummy("dummy");
 
 	string iterator = "";
@@ -91,7 +91,7 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-int receive_mq_message() 
+int receive_mq_messages() 
 {
 	mqd_t mq_d = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 
@@ -121,92 +121,21 @@ int receive_mq_message()
 	return MOSQ_ERR_SUCCESS;
 }
 
-static int callback_basic_auth(int event, void *event_data, void *userdata) 
- {
-	struct mosquitto_evt_basic_auth * basic_auth_event_data = (mosquitto_evt_basic_auth*)event_data;
- 	
- 	mosquitto_log_printf(MOSQ_LOG_INFO, "basic_auth callback received: %s / %s", basic_auth_event_data->username, basic_auth_event_data->password);
-		
-	// if(!basic_auth_event_data->username && !basic_auth_event_data->password) // TODO: durch strcmp ersetzen
-	return MOSQ_ERR_SUCCESS;
-	
-	// if(basic_auth_event_data->username == "felix" && basic_auth_event_data->password == "jacob")
-		// return MOSQ_ERR_SUCCESS;
-	
-	// return MOSQ_ERR_AUTH;
-}
-
-// static int callback_acl_check(int event, void *event_data, void *userdata) 
-//  {
-//  	// TODO: ACL file definieren
-//  	// TODO: return value von callins checken
- 	
-//  	int status_code = MOSQ_ERR_ACL_DENIED;
-// 	struct mosquitto_evt_acl_check * acl_event_data = (mosquitto_evt_acl_check*)event_data;
-	
-// 	mosquitto_log_printf(MOSQ_LOG_INFO, "acl_check callback received topic %s acc %d msg %s", acl_event_data->topic, acl_event_data->access, acl_event_data->payload);
-	
-// //	if(acl_event_data->access == MOSQ_ACL_SUBSCRIBE) {
-// //		if(acl_event_data->topic == "chat") {
-// //			// do spool^MOSQUITTO("m","","chat",clid_" has joined") ; als ziel fuer das spooling wird die lokale variable m gewaehlt. sie ist wahrscheinlich im shared memory zusammen mit den statischen variabeln des c triggers
-// //			status_code = MOSQ_ERR_SUCCESS;
-// //		}
-// //	}
-// //	
-// //	if(acl_event_data->access == MOSQ_ACL_WRITE) {
-// //		
-// //		// . do spool^MOSQUITTO("m",clid,topic,"ok") ; mqttfetch-response wird der lokale var m hinzugefuegt
-// //		// . do spool^MOSQUITTO("m","","chat",payload) ; chatnachricht des clients wird an alle anderen chats subscriber releast
-// //		status_code = MOSQ_ERR_SUCCESS;
-// //	}
-// //	
-// //	if(acl_event_data->access == MOSQ_ACL_READ) {
-// //		status_code = MOSQ_ERR_SUCCESS;
-// //	}
-	
-// 	// set resp=$$convert^MOSQUITTO(.m) ; response wird auf alle gespoolten nachrichten in stringform gesetzt
-	
-// 	// if (ci_success == YDB_OK && ci_return_val == YDB_OK)
-// 	// 	resp_2_send();
-	
-// 	status_code = MOSQ_ERR_SUCCESS;
-// 	return status_code;
-// }
-
-static int callback_disconnect(int event, void *event_data, void *userdata) 
-{
-	struct mosquitto_evt_disconnect * disconnect_event_data = (mosquitto_evt_disconnect*)event_data;
-
-	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_DISCONNECT %s\n", mosquitto_client_id(disconnect_event_data->client));
-	
-	return MOSQ_ERR_SUCCESS;
-}
-
 static int callback_message(int event, void *event_data, void *userdata)
 {
-	/*
-	 unused - nicht verwendet!!!
-	 */
-//	struct mosquitto_evt_message * ed = event_data;
-//	static ci_name_descriptor ci = {{sizeof("MSG")-1, "MSG"},NULL};
-//	int rc;
-	return MOSQ_ERR_SUCCESS;
-/*	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_MESSAGE client %s user %s", mosquitto_client_id(ed->client), mosquitto_client_username(ed->client));
+	struct mosquitto_evt_message * ed = event_data;
+	mosquitto_log_printf(MOSQ_LOG_INFO, "MOSQ_EVT_MESSAGE client %s user %s", mosquitto_client_id(ed->client), mosquitto_client_username(ed->client));
 	mosquitto_log_printf(MOSQ_LOG_INFO, "%d %lu", ed->payloadlen, (long unsigned) ed->payload);
 	printf("MOSQ_EVT_MESSAGE client %s user %s\n", mosquitto_client_id(ed->client), mosquitto_client_username(ed->client));
 	printf("%d %lu\n", ed->payloadlen, (long unsigned) ed->payload);
-	rc = ydb_cip(&ci, response, mosquitto_client_id(ed->client), mosquitto_client_username(ed->client) ? mosquitto_client_username(ed->client) : "", ed->topic, ed->payload? ed->payload : "");
-	mosquitto_log_printf(MOSQ_LOG_INFO,"Result: %d", rc);
-	resp_2_send();
-	return MOSQ_ERR_SUCCESS;*/
+	return MOSQ_ERR_SUCCESS;
 }
-
-
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	return receive_mq_message();
+	//return receive_mq_message();
 	// return get_and_send_spooled_messages();
+	return MOSQ_ERR_SUCCESS;
 }
 
 
@@ -231,9 +160,6 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	FILE * ci_fp;
 	mosq_pid = identifier;
 	
-//	if (!(spooled_messages = malloc(1000000)))
-//		return MOSQ_ERR_NOMEM;
-	
 	// Optionen auswerten
 	mosquitto_log_printf(MOSQ_LOG_INFO, "init %d\n", opt_count);
 	for (int i = 0; i < opt_count; i++) {
@@ -243,11 +169,6 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		else if (!strcmp(opts[i].key, "rou"))
 			rou = opts[i].value, mosquitto_log_printf(MOSQ_LOG_INFO, "Routine '%s'\n", rou);
 	}
-	
-	//setenv("ydb_dir", "/home/wbantel/.yottadb", 1);
-	//setenv("ydb_gbldir", "/home/wbantel/.yottadb/r1.24_x86_64/g/yottadb.gld", 1);
-	//setenv("ydb_routines", "/home/wbantel/.yottadb/r1.24_x86_64/o*(/home/wbantel/.yottadb/r1.24_x86_64/r /home/wbantel/.yottadb/r) /usr/local/lib/yottadb/r124/plugin/o/_ydbposix.so /usr/local/lib/yottadb/r124/libyottadbutil.so /usr/local/lib/yottadb/r124/libyottadb.so", 1);
-	//setenv("ydb_rel", "r1.24_x86_64", 1);
 	
 	sprintf(ci_fn, "/tmp/mosquitto-ydb-%d.ci", getpid());
 	printf("%s\n", ci_fn);
@@ -260,20 +181,15 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	);
 	fclose(ci_fp);
 	setenv("ydb_ci", ci_fn, 1);
-//	rc = ydb_init();
-//	mosquitto_log_printf(MOSQ_LOG_INFO,"ydb_init: %d\n", rc);
 	
 	//user_data beschreiben - derzeit nicht genutzt, nur zum Lernen!
-	char userdata_text[] = "123";
-	*user_data = mosquitto_malloc(sizeof(userdata_text));
-	memcpy(*user_data, userdata_text, sizeof(userdata_text));
+	// char userdata_text[] = "123";
+	// *user_data = mosquitto_malloc(sizeof(userdata_text));
+	// memcpy(*user_data, userdata_text, sizeof(userdata_text));
 
-	// Callback-Fkt registrieren
-	return
-	mosquitto_callback_register(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_basic_auth, NULL, *user_data)
-	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
-	|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL, *user_data);
-	//|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data)
+	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
+		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_DISCONNECT, callback_disconnect, NULL, *user_data);
+		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data)
 }
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
