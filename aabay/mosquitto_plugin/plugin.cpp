@@ -31,6 +31,10 @@
 #include "ydb-global.h"
 #include <regex>
 #include "json.h"
+#include <sstream>
+using std::istringstream;
+using std::string;
+using std::cout;
 
 #define UNUSED(A) (void)(A)
 
@@ -123,7 +127,15 @@ int receive_mq_messages()
 	}
 	return MOSQ_ERR_SUCCESS;
 }
-
+bool literal_to_json(Json::Value *json, char *literal){
+	istringstream literal_stream (literal);
+	try {
+		literal_stream >> *json;
+	} catch(exception& e) {
+		return false;
+	}
+	return true;
+}
 static int callback_message(int event, void *event_data, void *userdata)
 {
 // 	struct mosquitto_evt_message {
@@ -142,15 +154,84 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data;
 	string topic(ed->topic);
-	// string response;
 	const char *clid = mosquitto_client_id(ed->client);
-	Json::Value response;
-	response["topic"] = regex_replace(topic, regex("/fr/"), "/to/");
-	response["payload"] = regex_replace(topic, regex("/fr/"), "/to/");
+	string response_topic = regex_replace(topic, regex("/fr/"), "/to/");
 
-	
+	Json::Value request_payload;
+	Json::Value response_payload;
+	response_payload["rc"] = 0;
+
+	c_ydb_global _articles("^articles");
+
+	if(!literal_to_json(&request_payload, (char*)ed->payload))
+		return MOSQ_ERR_SUCCESS; // TODO: add -1 rc value instead
+
+	if(request_payload["action"] == "get_articles") 
+	{
+		string iterator = "";
+		int json_array_index = 0;
+		
+		while(iterator=_articles[iterator].nextSibling(), iterator!=""){
+			response_payload["articles"][json_array_index]["id"] = iterator;
+			response_payload["articles"][json_array_index]["title"] = (string)_articles[iterator]["title"];
+			response_payload["articles"][json_array_index]["bid"] = (string)_articles[iterator]["bid"];
+			json_array_index += 1;
+		}
+
+		cout << response_payload << endl;
+		Json::StreamWriterBuilder builder;
+		string serialized_response_payload = Json::writeString(builder, response_payload);
+
+		int result = mosquitto_broker_publish_copy(
+			NULL,
+			response_topic.c_str(),
+			strlen(serialized_response_payload.c_str()), 
+			serialized_response_payload.c_str(),
+			QOS_SPOOL,
+			RETAIN_SPOOL,
+			PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
+		);
+
+		return MOSQ_ERR_SUCCESS;
+	} 
+	else if(request_payload["action"] == "get_article") {
+		// id title bid text
+		// checken ob artikel existiert, sonst .rc auf -1 setzen
+
+		string requested_article_id = request_payload["id"].asString();
+		if(_articles[requested_article_id].hasChilds()) {
+			response_payload["article"]["id"] = requested_article_id;
+			response_payload["article"]["title"] = (string)_articles[requested_article_id]["title"];
+			response_payload["article"]["bid"] = (string)_articles[requested_article_id]["bid"];
+			response_payload["article"]["text"] = (string)_articles[requested_article_id]["text"];
+		}
+		else {
+			response_payload["rc"] = -1;
+		}
+
+		Json::StreamWriterBuilder builder; // TODO move levels up
+		string serialized_response_payload = Json::writeString(builder, response_payload);
+
+		int result = mosquitto_broker_publish_copy(
+			NULL,
+			response_topic.c_str(),
+			strlen(serialized_response_payload.c_str()), 
+			serialized_response_payload.c_str(),
+			QOS_SPOOL,
+			RETAIN_SPOOL,
+			PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
+		);
+
+		return MOSQ_ERR_SUCCESS;
+	}
+	 else if(request_payload["action"] == "bid") {
+		cout << "BID" << endl;
+	} else {
+		cout << "NOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo" << endl;
+	}
 	return MOSQ_ERR_SUCCESS;
 }
+
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
