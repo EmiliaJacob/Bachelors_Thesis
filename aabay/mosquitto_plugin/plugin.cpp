@@ -202,7 +202,6 @@ static int callback_message(int event, void *event_data, void *userdata)
 			json_array_index += 1;
 		}
 
-		//Json::StreamWriterBuilder builder; // TODO: move out
 		string serialized_response_payload = Json::writeString(builder, response_payload);
 		publish_response_message(response_topic, serialized_response_payload);
 
@@ -223,7 +222,6 @@ static int callback_message(int event, void *event_data, void *userdata)
 			response_payload["rc"] = -1;
 		}
 
-		//Json::StreamWriterBuilder builder; // TODO move levels up
 		string serialized_response_payload = Json::writeString(builder, response_payload);
 		publish_response_message(response_topic, serialized_response_payload);
 	
@@ -232,12 +230,12 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	if(request_payload["action"] == "bid") {
 		string article_id = request_payload["id"].asString();
-		c_ydb_entry article = _articles[article_id];
 		string nickname = request_payload["id"].asString(); 
-		int bid = stoi(request_payload["bid"].asString());// TODO: maybe change everywhere to int
-		int maxbid = stoi(article["maxbid"]); 
 
-		if(!article.hasChilds()) {
+		int bid = stoi(request_payload["bid"].asString());// TODO: maybe change everywhere to int
+		int maxbid = stoi(_articles[article_id]["maxbid"]); 
+
+		if(!_articles[article_id].hasChilds()) {
 			response_payload["rc"] = -3;
 			string serialized_response_payload = Json::writeString(builder, response_payload);
 			publish_response_message(response_topic, serialized_response_payload);
@@ -245,10 +243,10 @@ static int callback_message(int event, void *event_data, void *userdata)
 			return MOSQ_ERR_SUCCESS;
 		}
 
-		if(nickname == (string)article["winner"]) { // Gebot stammt von Hoechstbieter
+		if(nickname == (string)_articles[article_id]["winner"]) { // Gebot stammt von Hoechstbieter
 			if(bid >= maxbid + 1) {
-				article["maxbid"] = bid;
-				article["client"] = clid; // TODO: rename var
+				_articles[article_id]["maxbid"] = bid;
+				_articles[article_id]["client"] = clid; // TODO: rename var
 			}
 			else {
 				response_payload["rc"] = -1;
@@ -267,7 +265,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			string serialized_response_payload = Json::writeString(builder, response_payload);
 			publish_response_message(response_topic, serialized_response_payload);
 
-			string previous_winner_response_topic = regex_replace(response_topic, regex(clid), (string)article["client"]);
+			string previous_winner_response_topic = regex_replace(response_topic, regex(clid), (string)_articles[article_id]["client"]);
 
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
@@ -279,16 +277,16 @@ static int callback_message(int event, void *event_data, void *userdata)
 			string bid_notice_payload = to_string(maxbid+1); 
 			publish_response_message(bid_notice_topic, bid_notice_payload);
 
-			article["bid"] = maxbid + 1;
-			article["maxbid"] = bid;
-			article["winner"] = nickname;
-			article["client"] = clid;
+			_articles[article_id]["bid"] = maxbid + 1;
+			_articles[article_id]["maxbid"] = bid;
+			_articles[article_id]["winner"] = nickname;
+			_articles[article_id]["client"] = clid;
 
 			return MOSQ_ERR_SUCCESS;
 		}
 
-		if(stoi(article["bid"]) >  0) {  // neues gebot niedriger als hoechstgebot. Gebot wird erhoeht. TODO: Weshalb der Check hier? // TODO: Code dokumentiert sich nicht selbst -> Mehr Refactoring
-			article["bid"] = bid;
+		if(stoi(_articles[article_id]["bid"]) >  0) {  // neues gebot niedriger als hoechstgebot. Gebot wird erhoeht. TODO: Weshalb der Check hier? // TODO: Code dokumentiert sich nicht selbst -> Mehr Refactoring
+			_articles[article_id]["bid"] = bid;
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
 			string bid_notice_payload = to_string(bid);
