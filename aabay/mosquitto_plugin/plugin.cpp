@@ -229,9 +229,9 @@ static int callback_message(int event, void *event_data, void *userdata)
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	if(request_payload["action"] == "bid") {
+	if(request_payload["action"] == "bid") { // TODO: add check for non-selected article
 		string article_id = request_payload["id"].asString();
-		string nickname = request_payload["id"].asString(); 
+		string nickname = request_payload["nickname"].asString(); 
 
 		int bid = stoi(request_payload["bid"].asString());// TODO: maybe change everywhere to int
 		int maxbid = stoi(_articles[article_id]["maxbid"]); 
@@ -262,7 +262,8 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 			publish_response_message(response_topic, response_payload);
 
-			string previous_winner_response_topic = regex_replace(response_topic, regex(client_id), (string)_articles[article_id]["client"]);
+			string previous_winner_response_topic = "mqttfetch/aabay/" + (string)_articles[article_id]["client"] + "/to/-1";
+			cout << previous_winner_response_topic << endl;
 
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
