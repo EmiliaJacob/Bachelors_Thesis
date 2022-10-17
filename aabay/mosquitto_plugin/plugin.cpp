@@ -36,6 +36,10 @@ using std::istringstream;
 using std::string;
 using std::cout;
 
+// message callback
+Json::StreamWriterBuilder builder;
+c_ydb_global _articles("^articles");
+
 #define UNUSED(A) (void)(A)
 
 static mosquitto_plugin_id_t * mosq_pid = NULL;
@@ -127,6 +131,7 @@ int receive_mq_messages()
 	}
 	return MOSQ_ERR_SUCCESS;
 }
+
 bool literal_to_json(Json::Value *json, char *literal){
 	istringstream literal_stream (literal);
 	try {
@@ -136,9 +141,22 @@ bool literal_to_json(Json::Value *json, char *literal){
 	}
 	return true;
 }
+
+bool publish_response_message(string topic, string payload) { // TODO: Add predeclaration | One Version with JSON and one with String
+	int result = mosquitto_broker_publish_copy( 
+		NULL,
+		topic.c_str(),
+		strlen(payload.c_str()), // TODO: Maybe switch to CPP wrapper of mosquitto
+		payload.c_str(),
+		QOS_SPOOL,
+		RETAIN_SPOOL,
+		PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
+	);
+	return (result == MOSQ_ERR_SUCCESS);
+}
+
 static int callback_message(int event, void *event_data, void *userdata)
-{
-// 	struct mosquitto_evt_message {
+{ // 	struct mosquitto_evt_message {
 // 	void *future;
 // 	struct mosquitto *client;
 // 	char *topic;
@@ -153,218 +171,144 @@ static int callback_message(int event, void *event_data, void *userdata)
 // };
 
 	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data;
-	string topic(ed->topic);
+
 	const char *clid = mosquitto_client_id(ed->client);
-	string response_topic = regex_replace(topic, regex("/fr/"), "/to/");
+
+	string request_topic(ed->topic); // TODO: vllt variabel entfernen
+	string response_topic = regex_replace(request_topic, regex("/fr/"), "/to/");
 
 	Json::Value request_payload;
 	Json::Value response_payload;
 	response_payload["rc"] = 0;
 
-	c_ydb_global _articles("^articles");
+	//c_ydb_global _articles("^articles");
 
-	if(!literal_to_json(&request_payload, (char*)ed->payload))
-		return MOSQ_ERR_SUCCESS; // TODO: add -1 rc value instead
+	if(!literal_to_json(&request_payload, (char*)ed->payload)) {
+		response_payload["rc"] = -1;
+		string serialized_response_payload = Json::writeString(builder, response_payload);
+		publish_response_message(response_topic, serialized_response_payload);
 
-	if(request_payload["action"] == "get_articles") 
-	{
-		string iterator = "";
+		return MOSQ_ERR_SUCCESS; 
+	}
+
+	if(request_payload["action"] == "get_articles") {
+		string iterator = ""; // TODO: where is the best place to declare variables in c++?
 		int json_array_index = 0;
 		
-		while(iterator=_articles[iterator].nextSibling(), iterator!=""){
+		while(iterator=_articles[iterator].nextSibling(), iterator!="") {
 			response_payload["articles"][json_array_index]["id"] = iterator;
 			response_payload["articles"][json_array_index]["title"] = (string)_articles[iterator]["title"];
 			response_payload["articles"][json_array_index]["bid"] = (string)_articles[iterator]["bid"];
 			json_array_index += 1;
 		}
 
-		Json::StreamWriterBuilder builder; // TODO: move out
+		//Json::StreamWriterBuilder builder; // TODO: move out
 		string serialized_response_payload = Json::writeString(builder, response_payload);
-
-		int result = mosquitto_broker_publish_copy(
-			NULL,
-			response_topic.c_str(),
-			strlen(serialized_response_payload.c_str()), 
-			serialized_response_payload.c_str(),
-			QOS_SPOOL,
-			RETAIN_SPOOL,
-			PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-		);
+		publish_response_message(response_topic, serialized_response_payload);
 
 		return MOSQ_ERR_SUCCESS;
 	} 
 
-	else if(request_payload["action"] == "get_article") {
-		// id title bid text
-		// checken ob artikel existiert, sonst .rc auf -1 setzen
-
+	if(request_payload["action"] == "get_article") {
 		string requested_article_id = request_payload["id"].asString();
-		if(_articles[requested_article_id].hasChilds()) {
+		c_ydb_entry article = _articles[requested_article_id]; 
+
+		if(article.hasChilds()) {
 			response_payload["article"]["id"] = requested_article_id;
-			response_payload["article"]["title"] = (string)_articles[requested_article_id]["title"];
-			response_payload["article"]["bid"] = (string)_articles[requested_article_id]["bid"];
-			response_payload["article"]["text"] = (string)_articles[requested_article_id]["text"];
+			response_payload["article"]["title"] = (string)article["title"];
+			response_payload["article"]["bid"] = (string)article["bid"];
+			response_payload["article"]["text"] = (string)article["text"];
 		}
 		else {
 			response_payload["rc"] = -1;
 		}
 
-		Json::StreamWriterBuilder builder; // TODO move levels up
+		//Json::StreamWriterBuilder builder; // TODO move levels up
 		string serialized_response_payload = Json::writeString(builder, response_payload);
-
-		int result = mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
-			NULL,
-			response_topic.c_str(),
-			strlen(serialized_response_payload.c_str()), 
-			serialized_response_payload.c_str(),
-			QOS_SPOOL,
-			RETAIN_SPOOL,
-			PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-		);
-
+		publish_response_message(response_topic, serialized_response_payload);
+	
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	else if(request_payload["action"] == "bid") {
+	if(request_payload["action"] == "bid") {
 		string article_id = request_payload["id"].asString();
-		string nickname = request_payload["id"].asString(); // TODO: maybe change everywhere to int
+		c_ydb_entry article = _articles[article_id];
+		string nickname = request_payload["id"].asString(); 
+		int bid = stoi(request_payload["bid"].asString());// TODO: maybe change everywhere to int
+		int maxbid = stoi(article["maxbid"]); 
 
-		string bs = request_payload["id"].asString();
-		int bid = stoi(bs);
-
-		if(!_articles[article_id].hasChilds()) {
+		if(!article.hasChilds()) {
 			response_payload["rc"] = -3;
+			string serialized_response_payload = Json::writeString(builder, response_payload);
+			publish_response_message(response_topic, serialized_response_payload);
+
+			return MOSQ_ERR_SUCCESS;
 		}
-		else { // TODO: durch "break" ersetzen
 
-			c_ydb_entry article = _articles[article_id];
-			int maxbid = stoi(article["maxbid"]); 
-
-			if(nickname == (string)article["winner"]) { // selber hoechstbietender erhoeht Gebot
-				if(bid >= maxbid+1) {
-					article["maxbid"] = bid;
-					article["client"] = clid;
-				}
-				else {
-					response_payload["rc"] = -1;
-				}
-
-				Json::StreamWriterBuilder builder; // TODO move levels up
-				string serialized_response_payload = Json::writeString(builder, response_payload);
-
-				mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
-					NULL,
-					response_topic.c_str(),
-					strlen(serialized_response_payload.c_str()), 
-					serialized_response_payload.c_str(),
-					QOS_SPOOL,
-					RETAIN_SPOOL,
-					PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-				);
+		if(nickname == (string)article["winner"]) { // Gebot stammt von Hoechstbieter
+			if(bid >= maxbid + 1) {
+				article["maxbid"] = bid;
+				article["client"] = clid; // TODO: rename var
 			}
-			else { // Anderer Hoechstbietender
-				if(bid >= maxbid+1) { neues
-					Json::Value previous_winner_response_payload;
-					previous_winner_response_payload["rc"] = -1;
-					string previous_winner_response_topic = regex_replace(response_topic, regex(clid), (string)article["client"]);
-
-					Json::StreamWriterBuilder builder; // TODO move levels up
-					string serialized_previous_winner_response_payload = Json::writeString(builder, previous_winner_response_payload);
-					mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
-						NULL,
-						previous_winner_response_topic.c_str(),
-						strlen(serialized_previous_winner_response_payload.c_str()), 
-						serialized_previous_winner_response_payload.c_str(),
-						QOS_SPOOL,
-						RETAIN_SPOOL,
-						PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-					);
-
-					// Json::StreamWriterBuilder builder; // TODO move levels up
-					response_payload["rc"] = 1;
-					string serialized_response_payload = Json::writeString(builder, response_payload);
-					mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
-						NULL,
-						response_topic.c_str(),
-						strlen(serialized_response_payload.c_str()), 
-						serialized_response_payload.c_str(),
-						QOS_SPOOL,
-						RETAIN_SPOOL,
-						PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-					);
-
-					string bid_notice_topic = "aabay/bids/" + article_id;
-					string bid_notice_payload = to_string(maxbid+1); // TODO: switch maybe to c++ impl of mosquitto to use strings directly
-					mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
-						NULL,
-						bid_notice_topic.c_str(),
-						strlen(bid_notice_payload.c_str()), 
-						bid_notice_payload.c_str(),
-						QOS_SPOOL,
-						RETAIN_SPOOL,
-						PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-					);
-
-					article["bid"] = maxbid + 1;
-					article["maxbid"] = bid;
-					article["winner"] = nickname;
-					article["client"] = clid;
-				}
-				else {
-					if(stoi((string)article["bid"]) >  0) { // TODO: check if you can omit the parse
-						article["bid"] = bid;
-
-						string bid_notice_topic = "aabay/bids/" + article_id;
-						string bid_notice_payload = to_string(bid);
-						response_payload["rc"] = -2;
-						//send message
-
-						mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
-							NULL,
-							bid_notice_topic.c_str(),
-							strlen(bid_notice_payload.c_str()), 
-							bid_notice_payload.c_str(),
-							QOS_SPOOL,
-							RETAIN_SPOOL,
-							PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-						);
-
-						Json::StreamWriterBuilder builder; // TODO move levels up
-						string serialized_response_payload = Json::writeString(builder, response_payload);
-
-						mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
-							NULL,
-							response_topic.c_str(),
-							strlen(serialized_response_payload.c_str()), 
-							serialized_response_payload.c_str(),
-							QOS_SPOOL,
-							RETAIN_SPOOL,
-							PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-						);
-					}
-				}
+			else {
+				response_payload["rc"] = -1;
 			}
+
+			//Json::StreamWriterBuilder builder; // TODO move levels up
+			string serialized_response_payload = Json::writeString(builder, response_payload);
+			publish_response_message(response_topic, serialized_response_payload);
+
+			return MOSQ_ERR_SUCCESS;
 		}
+
+		if(bid >= maxbid + 1) { // erfolgreich ueberboten
+			// Json::StreamWriterBuilder builder; // TODO move levels up
+			response_payload["rc"] = 1;
+			string serialized_response_payload = Json::writeString(builder, response_payload);
+			publish_response_message(response_topic, serialized_response_payload);
+
+			string previous_winner_response_topic = regex_replace(response_topic, regex(clid), (string)article["client"]);
+
+			Json::Value previous_winner_response_payload;
+			previous_winner_response_payload["rc"] = -1;
+			//Json::StreamWriterBuilder builder; // TODO move levels up
+			string serialized_previous_winner_response_payload = Json::writeString(builder, previous_winner_response_payload);
+			publish_response_message(previous_winner_response_topic, serialized_previous_winner_response_payload);
+
+			string bid_notice_topic = "aabay/bids/" + article_id;
+			string bid_notice_payload = to_string(maxbid+1); 
+			publish_response_message(bid_notice_topic, bid_notice_payload);
+
+			article["bid"] = maxbid + 1;
+			article["maxbid"] = bid;
+			article["winner"] = nickname;
+			article["client"] = clid;
+
+			return MOSQ_ERR_SUCCESS;
+		}
+
+		if(stoi(article["bid"]) >  0) {  // neues gebot niedriger als hoechstgebot. Gebot wird erhoeht. TODO: Weshalb der Check hier? // TODO: Code dokumentiert sich nicht selbst -> Mehr Refactoring
+			article["bid"] = bid;
+
+			string bid_notice_topic = "aabay/bids/" + article_id;
+			string bid_notice_payload = to_string(bid);
+			publish_response_message(bid_notice_topic, bid_notice_payload);
+
+			response_payload["rc"] = -2;
+			string serialized_response_payload = Json::writeString(builder, response_payload);
+			publish_response_message(response_topic, serialized_response_payload);
+			return MOSQ_ERR_SUCCESS;
+		}
+
+		return MOSQ_ERR_SUCCESS;
 	} 
-	else {
-		response_payload["rc"] = -1;
-		//send message
-		Json::StreamWriterBuilder builder; // TODO move levels up
-		string serialized_response_payload = Json::writeString(builder, response_payload);
 
-		mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
-			NULL,
-			response_topic.c_str(),
-			strlen(serialized_response_payload.c_str()), 
-			serialized_response_payload.c_str(),
-			QOS_SPOOL,
-			RETAIN_SPOOL,
-			PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
-		);
-	}
+	response_payload["rc"] = -1;
+	//Json::StreamWriterBuilder builder; // TODO move levels up
+	string serialized_response_payload = Json::writeString(builder, response_payload);
+	publish_response_message(response_topic, serialized_response_payload);
 	return MOSQ_ERR_SUCCESS;
 }
-
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
@@ -372,7 +316,6 @@ static int callback_tick(int event, void *event_data, void *userdata)
 	// return get_and_send_spooled_messages();
 	return MOSQ_ERR_SUCCESS;
 }
-
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
 {
