@@ -163,11 +163,11 @@ bool publish_response_message(string topic, string payload) {
 }
 
 bool publish_response_message(string topic, Json::Value *payload) {  // TODO: ADD per reference
-	string serialized_response = Json::writeString(builder, response_payload);
+	string serialized_payload = Json::writeString(builder, &payload);
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
-		strlen(serialized_response.c_str()), // TODO: Maybe switch to CPP wrapper of mosquitto
+		strlen(serialized_payload.c_str()), // TODO: Maybe switch to CPP wrapper of mosquitto
 		serialized_payload.c_str(),
 		QOS_RESPONSE,
 		RETAIN_RESPONSE,
@@ -189,6 +189,23 @@ static int callback_message(int event, void *event_data, void *userdata)
 // 	bool retain;
 // 	void *future2[4];
 // };
+	c_ydb_global _giraffe("^giraffe");
+
+c_ydb_entry name = _giraffe["name"];
+c_ydb_entry nameCon(&_giraffe, "name");
+
+cout << _giraffe["name"]["age"] << endl; // 33
+cout << name["age"] << endl; // 33
+cout << name["age"] << endl; // NICHTS
+name = _giraffe["name"];
+cout << name["age"] << endl; // 33
+cout << name["age"] << endl; // NICHTS
+
+string age = (string)nameCon["age"];
+cout << age << endl; // 33
+
+age = (string)nameCon["age"];
+cout << age << endl; // NICHTS
 
 	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data;
 
@@ -203,7 +220,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	if(!literal_to_json(&request_payload, (char*)ed->payload)) {
 		response_payload["rc"] = -1;
-		publish_response_message(response_topic, response_payload);
+		publish_response_message(response_topic, &response_payload);
 
 		return MOSQ_ERR_SUCCESS; 
 	}
@@ -219,7 +236,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			json_array_index += 1;
 		}
 
-		publish_response_message(response_topic, response_payload);
+		publish_response_message(response_topic, &response_payload);
 
 		return MOSQ_ERR_SUCCESS;
 	} 
@@ -238,7 +255,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			response_payload["rc"] = -1;
 		}
 
-		publish_response_message(response_topic, response_payload);
+		publish_response_message(response_topic, &response_payload);
 	
 		return MOSQ_ERR_SUCCESS;
 	}
@@ -252,7 +269,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 		if(!_articles[article_id].hasChilds()) {
 			response_payload["rc"] = -3;
-			publish_response_message(response_topic, response_payload);
+			publish_response_message(response_topic, &response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -266,7 +283,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 				response_payload["rc"] = -1;
 			}
 
-			publish_response_message(response_topic, response_payload);
+			publish_response_message(response_topic, &response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -274,14 +291,14 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(bid >= maxbid + 1) { // erfolgreich ueberboten
 			response_payload["rc"] = 1;
 
-			publish_response_message(response_topic, response_payload);
+			publish_response_message(response_topic, &response_payload);
 
 			string previous_winner_response_topic = regex_replace(response_topic, regex(client_id), (string)_articles[article_id]["client"]);
 
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
 
-			publish_response_message(previous_winner_response_topic, previous_winner_response_payload);
+			publish_response_message(previous_winner_response_topic, &previous_winner_response_payload);
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
 			string bid_notice_payload = to_string(maxbid+1); 
@@ -304,7 +321,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 			response_payload["rc"] = -2;
 
-			publish_response_message(response_topic, response_payload);
+			publish_response_message(response_topic, &response_payload);
 			return MOSQ_ERR_SUCCESS;
 		}
 
@@ -313,7 +330,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	response_payload["rc"] = -1;
 
-	publish_response_message(response_topic, response_payload);
+	publish_response_message(response_topic, &response_payload);
 
 	return MOSQ_ERR_SUCCESS;
 }
