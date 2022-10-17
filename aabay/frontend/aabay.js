@@ -1,8 +1,7 @@
+var m;
 
- 
- var m;
 window.onload = async function() {
-	m = new mqtt_fetch("aabay");
+	m = new mqtt_fetch("aabay"); // prefix mqttfetch/aabay
 	await m.init("localhost", 1884); // MQTT over websockets!!
 	m.set_callback(-1, rx_status, true);
 	make_list();
@@ -10,7 +9,7 @@ window.onload = async function() {
 }
 
 async function make_list() {
-	var articles = await m.send({action: "get_articles"});
+	var articles = await m.send({action: "get_articles"}); //sendet an topic/clid/fr/counter | bekommt json objekt vom backend
 	console.log(articles);
 	for (let i = 0; i < articles.articles.length; i++) {
 		let node = document.createElement("li");
@@ -22,9 +21,9 @@ async function make_list() {
 		node.lastChild.setAttribute("class", "bid-" + articles.articles[i].id)
 		node.lastChild.appendChild(document.createTextNode(articles.articles[i].bid));
 		node.appendChild(document.createTextNode(" \u20ac"));
-		node.addEventListener("click", show);
+		node.addEventListener("click", show); // show fkt wird bei click eines items in der liste aufgerufen
 		document.getElementById("list").appendChild(node);
-		m.set_callback("aabay/bids/" +  articles.articles[i].id, rx_bid, true);
+		m.set_callback("aabay/bids/" +  articles.articles[i].id, rx_bid, true); // wenn eine nachricht auf aabay/bids/artid empfangen wird, dann wird rx_bid aufgerufen
 	}
 }
 
@@ -40,7 +39,7 @@ async function show(prm) {
 	document.getElementById("bid").setAttribute("class", "bid-" + article.article.id)
 }
 
-function rx_bid(topic, data) {
+function rx_bid(topic, data) { // wird aufgerufen wenn neue bid nachricht empfangen wird
 	console.log(topic, data);
 	let id = topic.split("/");
 	id = id[id.length - 1];
@@ -56,7 +55,7 @@ function rx_status(data) {
 	document.getElementById("status").firstChild.nodeValue = JSON.stringify(data);
 }
 
-async function tx_bid() {
+async function tx_bid() { // wird bei click auf bid button aufgerufen
 	var result = await m.send({
 		action: "bid",
 		id: document.getElementById("id").firstChild.nodeValue,
@@ -64,5 +63,4 @@ async function tx_bid() {
 		bid: +document.getElementById("my-bid").value
 	});
 	document.getElementById("response").firstChild.nodeValue = JSON.stringify(result);
-
 }

@@ -7,13 +7,13 @@ class mqtt_fetch {
 	constructor (prefix) {
 		this.prefix = "mqttfetch/" + prefix + "/";
 		this.mqtt_topicIndex = 0;
-		this.mqtt_topicMap = new Map;
+		this.mqtt_topicMap = new Map; // Map ist ein JS dictionary mit Reihenfolge
 		this.timeout = 1000;
 		this.qos = 0;
-		console.log("Ende Konstruktor " )
-	}
+		console.log("Ende Konstruktor " );
+	};
 	
-	init(host, port, uri, connect_prm) {
+	init(host, port, uri, connect_prm) { // return promise. bei erfolg wird mqttfetch/prefix/clid/to/+ subskribiert
 		const that = this;
 		if (connect_prm == undefined)
 			connect_prm = {};
@@ -28,17 +28,17 @@ class mqtt_fetch {
 				console.log("mqtt_connect_err"); 
 				resolve(-1);
 			};
-			that.mqtt_client = new Paho.MQTT.Client(host, port, uri, "mqtt-fetch-js-client-" + Math.floor(Math.random() * 1E15).toString());
+			that.mqtt_client = new Paho.MQTT.Client(host, port, uri, "mqtt-fetch-js-client-" + Math.floor(Math.random() * 1E15).toString()); // hier wird clid berechnet
 			that.mqtt_client.onMessageArrived = function(msg) {that.mqtt_fetch_rx(msg, that)};
 			that.mqtt_client.onConnectionLost = function () {console.log("mqtt_fetch_onConnectionLost");};
 			console.log("Connecting....");
-			that.mqtt_client.connect(connect_prm);
+			that.mqtt_client.connect(connect_prm); // hier wird promise resolved
 			console.log("Done");
 		});
 	};
 	
 	
-	subscribe(topic) {
+	subscribe(topic) { // TODO: vllt clid mitschicken um direktantwort von Broker aus zu schicken
 		var that = this;
 		console.log("subscribing " + topic);
 		return new Promise(function(resolve) {
@@ -62,7 +62,7 @@ class mqtt_fetch {
 	}
 	
 
-	send(v) {
+	send(v) { // TODO: Vllt clid flag statt subtopic verwenden | Sendet msg an prefix/clid/fr/topicIndex
 		var is_object = typeof v === "object";
 		if (is_object)
 			v = JSON.stringify(v);
@@ -70,9 +70,9 @@ class mqtt_fetch {
 		return new Promise(function(resolve) {
 		    console.log("OUTMESSAGEPAYLOAD: " + v);
 			var message = new Paho.MQTT.Message(v);
-			message.destinationName = that.prefix + that.mqtt_client.clientId + "/fr/" + that.mqtt_topicIndex;
+			message.destinationName = that.prefix + that.mqtt_client.clientId + "/fr/" + that.mqtt_topicIndex; // topicindex wird bei jeder message hochgezaehlt. Warum TOPICindex?
 			message.qos = that.qos;
-			that.mqtt_topicMap.set(that.mqtt_topicIndex, [resolve,setTimeout(that.mqtt_fetch_error, that.timeout, that.mqtt_topicIndex, that), is_object]);
+			that.mqtt_topicMap.set(that.mqtt_topicIndex, [resolve,setTimeout(that.mqtt_fetch_error, that.timeout, that.mqtt_topicIndex, that), is_object]); //topicIndex ist key
 
 		    console.log("OUTMESSAGETOPIC: " + message.destinationName);
 			that.mqtt_client.send(message);
@@ -80,16 +80,16 @@ class mqtt_fetch {
 		});
 	}
 	
-	mqtt_fetch_rx (msg, that) {
-		var topic = msg.destinationName.split("/");
+	mqtt_fetch_rx (msg, that) { // wird aufgerufen wenn message empfangen wurde
+		var topic = msg.destinationName.split("/"); // aabay,bids,artid
 		 console.log("rx " + msg.destinationName + " " + msg.payloadString);
-		if (msg.destinationName.substring(0,that.prefix.length) == that.prefix) {
-			var nr=+topic[topic.length - 1], dummy = that.mqtt_topicMap.get(nr);
+		if (msg.destinationName.substring(0,that.prefix.length) == that.prefix) { // checkt ob topic der message den selben prefix hat? mqttfetch/aabay
+			var nr=+topic[topic.length - 1], dummy = that.mqtt_topicMap.get(nr); // nr wird auf den counter gesetzt (letztes subtopic), dummy wird ueber den counter das entsprechende objekt aus mqtt_map zugewiesen
 
-			if (dummy != undefined) {
+			if (dummy != undefined) { // fuer den counter ist ein eintrag in der map enthalten
 				if (nr >= 0) {
-					clearTimeout(dummy[1]);
-					that.mqtt_topicMap.delete(nr);
+					clearTimeout(dummy[1]); // cleart ein zuvor gesetztes timeout
+					that.mqtt_topicMap.delete(nr); // die antwort wurde empfangen. deshalb kann nun der eintrag wieder geloescht werden
 				}
 				dummy[0]((dummy[2] == true) ? JSON.parse(msg.payloadString) : msg.payloadString); // Promise einloesen oder callback-Fkt.!
 			}
@@ -97,7 +97,8 @@ class mqtt_fetch {
 				console.log("Verworfenes Topic " + msg.destinationName + " " + msg.payloadString);
 			}
 		}
-		else if (that.mqtt_topicMap.has(msg.destinationName)) {
+		else if (that.mqtt_topicMap.has(msg.destinationName)) { // fuer nicht-fetch nachrichten die empfangen wurden
+			console.log("DELLO");
 			var r = that.mqtt_topicMap.get(msg.destinationName);
 			r[0](msg.destinationName, (r[2] == true) ? JSON.parse(msg.payloadString) : msg);
 		}
@@ -114,13 +115,14 @@ class mqtt_fetch {
 			that.mqtt_error(nr);
 	}
 	
-	async set_callback(index, f, is_object) {
+	//key:topic, [0]:callback function, [1]:timeout, [2]:is_object
+	async set_callback(index, f, is_object) { // index=topic f=>callback funktion
 		var rc = 0;
-		if (index != parseInt(index, 10) ) {
+		if (index != parseInt(index, 10) ) { // Es wird getestet ob index keine gerade zahl ist
 			rc = await this.subscribe(index, {});
 			console.log("rc = " + rc);
 		}
-		this.mqtt_topicMap.set(index, [f, undefined , is_object == true]);
+		this.mqtt_topicMap.set(index, [f, undefined , is_object == true]); // dem key: topic wird in der map die callback fkt hinzugefuegt
 		return rc;
 	}
 	
