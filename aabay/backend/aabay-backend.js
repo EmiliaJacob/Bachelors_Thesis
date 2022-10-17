@@ -47,24 +47,23 @@ exports.aabay = function(topic, message) {
 		}
 		else { // Anderer Hoechstbietender
 			if(o.bid >= articles[o.id].maxbid+1) { 
-        let dummy = Object.assign({}, articles[o.id]);
-        console.log(JSON.stringify(dummy));
+				let dummy = Object.assign({}, articles[o.id]); // ist notwendig weil die nachrichten erst am ende versendet werden
 
 				articles[o.id].bid = articles[o.id].maxbid + 1;
 				articles[o.id].maxbid = o.bid;
 				articles[o.id].winner = o.nickname;
 				articles[o.id].client = client_id;		
 
-        //new winner msg
+				//new winner msg
 				response[0].payload.rc = 1;
-        //old winner msg
-        response.push(
-          {topic: `${topic.split('/')[0]}/${topic.split('/')[1]}/${dummy.client}/to/${topic.split('/')[4]}`, payload: {rc: -1} }
-        );
-        //universal new bid msg
-        response.push(
-          {topic: `aabay/bids/${o.id}`, payload: `${dummy.maxbid+1}`}
-        );
+				//old winner msg
+				response.push(
+					{topic: `${topic.split('/')[0]}/${topic.split('/')[1]}/${dummy.client}/to/${topic.split('/')[4]}`, payload: {rc: -1} } //client id wird ersetzt
+				);
+				//universal new bid msg
+				response.push(
+					{topic: `aabay/bids/${o.id}`, payload: `${dummy.maxbid+1}`}
+				);
 			}
 			else{
         let dummy = articles[o.id].bid; 

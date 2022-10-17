@@ -212,7 +212,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		Json::StreamWriterBuilder builder; // TODO move levels up
 		string serialized_response_payload = Json::writeString(builder, response_payload);
 
-		int result = mosquitto_broker_publish_copy(
+		int result = mosquitto_broker_publish_copy( // TODO move to very bottom of function and do it only once
 			NULL,
 			response_topic.c_str(),
 			strlen(serialized_response_payload.c_str()), 
@@ -224,10 +224,63 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 		return MOSQ_ERR_SUCCESS;
 	}
-	 else if(request_payload["action"] == "bid") {
-		cout << "BID" << endl;
-	} else {
-		cout << "NOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOo" << endl;
+	else if(request_payload["action"] == "bid") {
+		string article_id = request_payload["id"].asString();
+		string nickname = request_payload["id"].asString();
+		int bid = request_payload["id"].asInt();
+		
+		if(!_articles[article_id].hasChilds()) {
+			response_payload["rc"] = -3;
+		}
+		else { // TODO: durch "break" ersetzen
+
+			c_ydb_entry article = _articles[article_id];
+			int maxbid = stoi(_articles[article_id]); 
+			
+			if(nickname == article["winner"]) {
+				if(bid >= maxbid+1) {
+					article["maxbid"] = bid;
+					article["client"] = clid;
+				}
+				else {
+					response_payload["rc"] = -1;
+				}
+			}
+			else { // Anderer Hoechstbietender
+				if(bid >= maxbid+1) {
+
+					response_payload["rc"] = 1;
+
+					Json::Value previous_winner_response_payload;
+					previous_winner_response_payload["rc"] = -1;
+					string previous_winner_response_topic = regex_replace(response_topic, regex(clid), article["client"]);
+
+					string bid_notice_topic = "aabay/bids/" + article_id;
+					string bid_notice_payload = bid;
+
+					//send 2 messages
+
+					article["bid"] = maxbid + 1;
+					article["maxbid"] = bid;
+					article["winner"] = nickname;
+					article["client"] = clid;
+				}
+				else {
+					if(stoi(article["bid"]) >  0) {
+						article["bid"] = bid;
+
+						string bid_notice_topic = "aabay/bids/" + article_id;
+						string bid_notice_payload = bid;
+						response_payload["rc"] = -2;
+						//send message
+					}
+				}
+			}
+		}
+	} 
+	else {
+		response_payload["rc"] = -1
+		//send message
 	}
 	return MOSQ_ERR_SUCCESS;
 }
