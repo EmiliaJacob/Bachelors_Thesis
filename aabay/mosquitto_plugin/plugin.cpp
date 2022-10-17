@@ -162,12 +162,12 @@ bool publish_response_message(string topic, string payload) {
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
-bool publish_response_message(string topic, Json::Value &payload) {  // TODO: ADD per reference
+bool publish_response_message(string topic, Json::Value &payload) {  
 	string serialized_payload = Json::writeString(builder, payload);
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
-		strlen(serialized_payload.c_str()), // TODO: Maybe switch to CPP wrapper of mosquitto
+		strlen(serialized_payload.c_str()), 
 		serialized_payload.c_str(),
 		QOS_RESPONSE,
 		RETAIN_RESPONSE,
@@ -246,7 +246,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(nickname == (string)_articles[article_id]["winner"]) { // Gebot stammt von Hoechstbieter
 			if(bid >= maxbid + 1) {
 				_articles[article_id]["maxbid"] = bid;
-				_articles[article_id]["client"] = client_id; // TODO: rename var
+				_articles[article_id]["client"] = client_id; 
 			}
 			else {
 				response_payload["rc"] = -1;
