@@ -52,6 +52,10 @@ static const int QOS_SPOOL = 0;
 static const bool RETAIN_SPOOL = false;
 static mosquitto_property *PROPERTIES_SPOOL = NULL;
 
+static const int QOS_RESPONSE = 0;
+static const bool RETAIN_RESPONSE = false;
+static mosquitto_property *PROPERTIES_RESPONSE = NULL;
+
 int get_and_send_spooled_messages();
 
 int receive_mq_messages();
@@ -151,23 +155,23 @@ bool publish_response_message(string topic, string payload) {
 		topic.c_str(),
 		strlen(payload.c_str()), // TODO: Maybe switch to CPP wrapper of mosquitto
 		payload.c_str(),
-		QOS_SPOOL,
-		RETAIN_SPOOL,
-		PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
+		QOS_RESPONSE,
+		RETAIN_RESPONSE,
+		PROPERTIES_RESPONSE 
 	);
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
-bool publish_response_message(string topic, Json::Value *payload) { 
+bool publish_response_message(string topic, Json::Value *payload) {  // TODO: ADD per reference
 	string serialized_response = Json::writeString(builder, response_payload);
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
 		strlen(serialized_response.c_str()), // TODO: Maybe switch to CPP wrapper of mosquitto
 		serialized_payload.c_str(),
-		QOS_SPOOL,
-		RETAIN_SPOOL,
-		PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
+		QOS_RESPONSE,
+		RETAIN_RESPONSE,
+		PROPERTIES_RESPONSE
 	);
 	return (result == MOSQ_ERR_SUCCESS);
 }
@@ -188,7 +192,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data;
 
-	const char *clid = mosquitto_client_id(ed->client);
+	const char *client_id = mosquitto_client_id(ed->client);
 
 	string request_topic(ed->topic); // TODO: vllt variabel entfernen
 	string response_topic = regex_replace(request_topic, regex("/fr/"), "/to/");
@@ -256,7 +260,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(nickname == (string)_articles[article_id]["winner"]) { // Gebot stammt von Hoechstbieter
 			if(bid >= maxbid + 1) {
 				_articles[article_id]["maxbid"] = bid;
-				_articles[article_id]["client"] = clid; // TODO: rename var
+				_articles[article_id]["client"] = client_id; // TODO: rename var
 			}
 			else {
 				response_payload["rc"] = -1;
@@ -272,7 +276,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 			publish_response_message(response_topic, response_payload);
 
-			string previous_winner_response_topic = regex_replace(response_topic, regex(clid), (string)_articles[article_id]["client"]);
+			string previous_winner_response_topic = regex_replace(response_topic, regex(client_id), (string)_articles[article_id]["client"]);
 
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
@@ -286,7 +290,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			_articles[article_id]["bid"] = maxbid + 1;
 			_articles[article_id]["maxbid"] = bid;
 			_articles[article_id]["winner"] = nickname;
-			_articles[article_id]["client"] = clid;
+			_articles[article_id]["client"] = client_id;
 
 			return MOSQ_ERR_SUCCESS;
 		}
