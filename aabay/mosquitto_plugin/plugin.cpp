@@ -39,6 +39,9 @@ using std::cout;
 // message callback
 Json::StreamWriterBuilder builder;
 c_ydb_global _articles("^articles");
+bool literal_to_json(Json::Value *json, char *literal);
+bool publish_response_message(string topic, Json::Value *payload); 
+bool publish_response_message(string topic, string payload);
 
 #define UNUSED(A) (void)(A)
 
@@ -132,7 +135,7 @@ int receive_mq_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-bool literal_to_json(Json::Value *json, char *literal){
+bool literal_to_json(Json::Value *json, char *literal) {
 	istringstream literal_stream (literal);
 	try {
 		literal_stream >> *json;
@@ -142,7 +145,7 @@ bool literal_to_json(Json::Value *json, char *literal){
 	return true;
 }
 
-bool publish_response_message(string topic, string payload) { // TODO: Add predeclaration | One Version with JSON and one with String
+bool publish_response_message(string topic, string payload) {
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
@@ -155,6 +158,19 @@ bool publish_response_message(string topic, string payload) { // TODO: Add prede
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
+bool publish_response_message(string topic, Json::Value *payload) { 
+	string serialized_response = Json::writeString(builder, response_payload);
+	int result = mosquitto_broker_publish_copy( 
+		NULL,
+		topic.c_str(),
+		strlen(serialized_response.c_str()), // TODO: Maybe switch to CPP wrapper of mosquitto
+		serialized_payload.c_str(),
+		QOS_SPOOL,
+		RETAIN_SPOOL,
+		PROPERTIES_SPOOL // TODO: const wert fuer aabay anpassen
+	);
+	return (result == MOSQ_ERR_SUCCESS);
+}
 static int callback_message(int event, void *event_data, void *userdata)
 { // 	struct mosquitto_evt_message {
 // 	void *future;
@@ -181,12 +197,9 @@ static int callback_message(int event, void *event_data, void *userdata)
 	Json::Value response_payload;
 	response_payload["rc"] = 0;
 
-	//c_ydb_global _articles("^articles");
-
 	if(!literal_to_json(&request_payload, (char*)ed->payload)) {
 		response_payload["rc"] = -1;
-		string serialized_response_payload = Json::writeString(builder, response_payload);
-		publish_response_message(response_topic, serialized_response_payload);
+		publish_response_message(response_topic, response_payload);
 
 		return MOSQ_ERR_SUCCESS; 
 	}
@@ -202,8 +215,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			json_array_index += 1;
 		}
 
-		string serialized_response_payload = Json::writeString(builder, response_payload);
-		publish_response_message(response_topic, serialized_response_payload);
+		publish_response_message(response_topic, response_payload);
 
 		return MOSQ_ERR_SUCCESS;
 	} 
@@ -222,8 +234,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			response_payload["rc"] = -1;
 		}
 
-		string serialized_response_payload = Json::writeString(builder, response_payload);
-		publish_response_message(response_topic, serialized_response_payload);
+		publish_response_message(response_topic, response_payload);
 	
 		return MOSQ_ERR_SUCCESS;
 	}
@@ -237,8 +248,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 		if(!_articles[article_id].hasChilds()) {
 			response_payload["rc"] = -3;
-			string serialized_response_payload = Json::writeString(builder, response_payload);
-			publish_response_message(response_topic, serialized_response_payload);
+			publish_response_message(response_topic, response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -252,26 +262,22 @@ static int callback_message(int event, void *event_data, void *userdata)
 				response_payload["rc"] = -1;
 			}
 
-			//Json::StreamWriterBuilder builder; // TODO move levels up
-			string serialized_response_payload = Json::writeString(builder, response_payload);
-			publish_response_message(response_topic, serialized_response_payload);
+			publish_response_message(response_topic, response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
 
 		if(bid >= maxbid + 1) { // erfolgreich ueberboten
-			// Json::StreamWriterBuilder builder; // TODO move levels up
 			response_payload["rc"] = 1;
-			string serialized_response_payload = Json::writeString(builder, response_payload);
-			publish_response_message(response_topic, serialized_response_payload);
+
+			publish_response_message(response_topic, response_payload);
 
 			string previous_winner_response_topic = regex_replace(response_topic, regex(clid), (string)_articles[article_id]["client"]);
 
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
-			//Json::StreamWriterBuilder builder; // TODO move levels up
-			string serialized_previous_winner_response_payload = Json::writeString(builder, previous_winner_response_payload);
-			publish_response_message(previous_winner_response_topic, serialized_previous_winner_response_payload);
+
+			publish_response_message(previous_winner_response_topic, previous_winner_response_payload);
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
 			string bid_notice_payload = to_string(maxbid+1); 
@@ -293,8 +299,8 @@ static int callback_message(int event, void *event_data, void *userdata)
 			publish_response_message(bid_notice_topic, bid_notice_payload);
 
 			response_payload["rc"] = -2;
-			string serialized_response_payload = Json::writeString(builder, response_payload);
-			publish_response_message(response_topic, serialized_response_payload);
+
+			publish_response_message(response_topic, response_payload);
 			return MOSQ_ERR_SUCCESS;
 		}
 
@@ -302,9 +308,9 @@ static int callback_message(int event, void *event_data, void *userdata)
 	} 
 
 	response_payload["rc"] = -1;
-	//Json::StreamWriterBuilder builder; // TODO move levels up
-	string serialized_response_payload = Json::writeString(builder, response_payload);
-	publish_response_message(response_topic, serialized_response_payload);
+
+	publish_response_message(response_topic, response_payload);
+
 	return MOSQ_ERR_SUCCESS;
 }
 
