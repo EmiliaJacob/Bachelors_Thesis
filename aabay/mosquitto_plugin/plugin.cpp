@@ -162,8 +162,8 @@ bool publish_response_message(string topic, string payload) {
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
-bool publish_response_message(string topic, Json::Value *payload) {  // TODO: ADD per reference
-	string serialized_payload = Json::writeString(builder, &payload);
+bool publish_response_message(string topic, Json::Value &payload) {  // TODO: ADD per reference
+	string serialized_payload = Json::writeString(builder, payload);
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
@@ -176,37 +176,7 @@ bool publish_response_message(string topic, Json::Value *payload) {  // TODO: AD
 	return (result == MOSQ_ERR_SUCCESS);
 }
 static int callback_message(int event, void *event_data, void *userdata)
-{ // 	struct mosquitto_evt_message {
-// 	void *future;
-// 	struct mosquitto *client;
-// 	char *topic;
-// 	void *payload;
-// 	mosquitto_property *properties;
-// 	char *reason_string;
-// 	uint32_t payloadlen;
-// 	uint8_t qos;
-// 	uint8_t reason_code;
-// 	bool retain;
-// 	void *future2[4];
-// };
-	c_ydb_global _giraffe("^giraffe");
-
-c_ydb_entry name = _giraffe["name"];
-c_ydb_entry nameCon(&_giraffe, "name");
-
-cout << _giraffe["name"]["age"] << endl; // 33
-cout << name["age"] << endl; // 33
-cout << name["age"] << endl; // NICHTS
-name = _giraffe["name"];
-cout << name["age"] << endl; // 33
-cout << name["age"] << endl; // NICHTS
-
-string age = (string)nameCon["age"];
-cout << age << endl; // 33
-
-age = (string)nameCon["age"];
-cout << age << endl; // NICHTS
-
+{
 	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data;
 
 	const char *client_id = mosquitto_client_id(ed->client);
@@ -220,7 +190,7 @@ cout << age << endl; // NICHTS
 
 	if(!literal_to_json(&request_payload, (char*)ed->payload)) {
 		response_payload["rc"] = -1;
-		publish_response_message(response_topic, &response_payload);
+		publish_response_message(response_topic, response_payload);
 
 		return MOSQ_ERR_SUCCESS; 
 	}
@@ -236,26 +206,25 @@ cout << age << endl; // NICHTS
 			json_array_index += 1;
 		}
 
-		publish_response_message(response_topic, &response_payload);
+		publish_response_message(response_topic, response_payload);
 
 		return MOSQ_ERR_SUCCESS;
 	} 
 
 	if(request_payload["action"] == "get_article") {
-		string requested_article_id = request_payload["id"].asString();
-		c_ydb_entry article = _articles[requested_article_id]; 
+		string requested_article_id = request_payload["id"].asString(); // TODO: move prop out
 
-		if(article.hasChilds()) {
+		if(_articles[requested_article_id].hasChilds()) {
 			response_payload["article"]["id"] = requested_article_id;
-			response_payload["article"]["title"] = (string)article["title"];
-			response_payload["article"]["bid"] = (string)article["bid"];
-			response_payload["article"]["text"] = (string)article["text"];
+			response_payload["article"]["title"] = (string)_articles[requested_article_id]["title"];
+			response_payload["article"]["bid"] = (string)_articles[requested_article_id]["bid"];
+			response_payload["article"]["text"] = (string)_articles[requested_article_id]["text"];
 		}
 		else {
 			response_payload["rc"] = -1;
 		}
 
-		publish_response_message(response_topic, &response_payload);
+		publish_response_message(response_topic, response_payload);
 	
 		return MOSQ_ERR_SUCCESS;
 	}
@@ -269,7 +238,7 @@ cout << age << endl; // NICHTS
 
 		if(!_articles[article_id].hasChilds()) {
 			response_payload["rc"] = -3;
-			publish_response_message(response_topic, &response_payload);
+			publish_response_message(response_topic, response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -283,7 +252,7 @@ cout << age << endl; // NICHTS
 				response_payload["rc"] = -1;
 			}
 
-			publish_response_message(response_topic, &response_payload);
+			publish_response_message(response_topic, response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -291,14 +260,14 @@ cout << age << endl; // NICHTS
 		if(bid >= maxbid + 1) { // erfolgreich ueberboten
 			response_payload["rc"] = 1;
 
-			publish_response_message(response_topic, &response_payload);
+			publish_response_message(response_topic, response_payload);
 
 			string previous_winner_response_topic = regex_replace(response_topic, regex(client_id), (string)_articles[article_id]["client"]);
 
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
 
-			publish_response_message(previous_winner_response_topic, &previous_winner_response_payload);
+			publish_response_message(previous_winner_response_topic, previous_winner_response_payload);
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
 			string bid_notice_payload = to_string(maxbid+1); 
@@ -321,7 +290,7 @@ cout << age << endl; // NICHTS
 
 			response_payload["rc"] = -2;
 
-			publish_response_message(response_topic, &response_payload);
+			publish_response_message(response_topic, response_payload);
 			return MOSQ_ERR_SUCCESS;
 		}
 
@@ -330,7 +299,7 @@ cout << age << endl; // NICHTS
 
 	response_payload["rc"] = -1;
 
-	publish_response_message(response_topic, &response_payload);
+	publish_response_message(response_topic, response_payload);
 
 	return MOSQ_ERR_SUCCESS;
 }
