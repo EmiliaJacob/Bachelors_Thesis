@@ -1,1 +1,1 @@
-+^Articles(*;bid) -command=S -xecute"d spool^MOSQUITTO("aabay/bids/"_@$REFERENCE,$ZTVALUE)"
++^Articles(*;bid) -command=S -xecute"d spool^MOSQUITTO("aabay/bids/"_@$REFERENCE,$ZTVALUE)" -name=TrigGlobalSpool
