@@ -1,0 +1,2 @@
++^articles(articleId=*,"bid") -commands=Set -xecute="d &mqtrigger.addMqttMessage(""aabay/bids/""_articleId,$ZTVALUE)" -name=mq
++^articles(articleId=*,"bid") -commands=Set -xecute="d spool^MOSQUITTO(""^ms"","""",""aabay/bids/""_articleId,$ZTVALUE)" -name=globalSpool

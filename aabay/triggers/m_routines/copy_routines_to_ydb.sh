@@ -1,0 +1,1 @@
+cp * /home/emi/.yottadb/r1.34_x86_64/r 
