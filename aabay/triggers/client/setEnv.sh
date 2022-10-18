@@ -1,1 +1,1 @@
- export ydb_xc_mqttclient=/home/emi/ydbay/solutions/external_c_routine/mqttclient.xc
+ export ydb_xc_mqttclient=/home/emi/ydbay/aabay/triggers/client/mqttclient.xc
