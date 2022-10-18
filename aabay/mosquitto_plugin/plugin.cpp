@@ -62,7 +62,7 @@ int receive_mq_messages();
 
 int get_and_send_spooled_messages()
 {
-	c_ydb_global _mqttspool("^ms"); // TODO: Make static
+	c_ydb_global _mqttspool("^ms"); // TODO: Make static | Where should declaration be in C++?
 	c_ydb_global dummy("dummy");
 
 	string iterator = "";
@@ -308,8 +308,8 @@ static int callback_message(int event, void *event_data, void *userdata)
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
 	//return receive_mq_message();
-	// return get_and_send_spooled_messages();
-	return MOSQ_ERR_SUCCESS;
+	return get_and_send_spooled_messages();
+	// return MOSQ_ERR_SUCCESS;
 }
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
