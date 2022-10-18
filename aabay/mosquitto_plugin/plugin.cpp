@@ -109,7 +109,7 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-int receive_mq_messages() 
+int receive_mq_messages()  // TODO: read a fixed number of messages each call
 {
 	mqd_t mq_d = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 
@@ -307,8 +307,8 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	//return receive_mq_message();
-	return get_and_send_spooled_messages();
+	return receive_mq_messages();
+	// return get_and_send_spooled_messages();
 	// return MOSQ_ERR_SUCCESS;
 }
 
