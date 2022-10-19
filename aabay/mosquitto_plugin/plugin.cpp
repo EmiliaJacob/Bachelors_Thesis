@@ -132,6 +132,12 @@ int receive_mq_messages()
 			return MOSQ_ERR_SUCCESS;
 		}
 		else {
+
+			if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)"))) {
+				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq message format" );
+				return MOSQ_ERR_SUCCESS;
+			}
+
 			vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
 			vector<char> topic(buffer.begin(), delimiter_element );
 			vector<char> payload(delimiter_element + 1, buffer.end());
