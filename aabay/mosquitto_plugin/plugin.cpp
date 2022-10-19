@@ -346,6 +346,8 @@ int mosquitto_plugin_version(int supported_version_count, const int *supported_v
 
 int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, struct mosquitto_opt *opts, int opt_count)
 {
+	mosq_pid = identifier;
+
 	mosquitto_log_printf(MOSQ_LOG_INFO, "Init %d\n", opt_count);
 
 	for (int i = 0; i < opt_count; i++) {
@@ -361,7 +363,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	}
 
 	if(!strcmp(sync_mode, "mq")){
-		mqd_t mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); // TODO: mq open in init function machen und spaeter wieder schliessen
+		mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 	}
 
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
@@ -371,7 +373,9 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
 {
 	if(!strcmp(sync_mode, "mq")){
-		mqd_t mq_descriptor = mq_close("/mqttspool");
+		if(mq_descriptor != -1) {
+			mq_close(mq_descriptor);
+		}
 	}
 
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
