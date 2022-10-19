@@ -31,6 +31,9 @@ using std::string;
 using std::cout;
 using std::vector;
 
+
+char *sync_mode = "client";
+
 // message callback
 Json::StreamWriterBuilder builder;
 c_ydb_global _articles("^articles");
@@ -335,44 +338,21 @@ int mosquitto_plugin_version(int supported_version_count, const int *supported_v
 	return -1;
 }
 
-char ci_fn[64];
- 
 int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, struct mosquitto_opt *opts, int opt_count)
 {
-	//int rc;
-	char * rou;
-	FILE * ci_fp;
-	mosq_pid = identifier;
-	
-	// Optionen auswerten
-	mosquitto_log_printf(MOSQ_LOG_INFO, "init %d\n", opt_count);
+	mosquitto_log_printf(MOSQ_LOG_INFO, "Init %d\n", opt_count);
+
 	for (int i = 0; i < opt_count; i++) {
-		mosquitto_log_printf(MOSQ_LOG_INFO, "\t%d %s %s\n", i, opts[i].key + 4, opts[i].value);
-		if (!strncmp(opts[i].key, "env-", 4))
-			setenv(opts[i].key + 4, opts[i].value, 1);
-		else if (!strcmp(opts[i].key, "rou"))
-			rou = opts[i].value, mosquitto_log_printf(MOSQ_LOG_INFO, "Routine '%s'\n", rou);
-		else if(strcmp(opts[i].key, "sync_mode")) {
-			cout << "MODE " << opts[i].value << endl;
+		if(!strcmp(opts[i].key, "sync_mode")) {
+			if(!strcmp(opts[i].value,"client") || !strcmp(opts[i].value,"mq") || !strcmp(opts[i].value,"global")) {
+				mosquitto_log_printf(MOSQ_LOG_INFO, "Selected Sync Mode: %s", opts[i].value);
+				sync_mode = opts[i].value;
+			}
+			else {
+				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid Sync Mode %s" , sync_mode);
+			}
 		}
 	}
-	
-	sprintf(ci_fn, "/tmp/mosquitto-ydb-%d.ci", getpid());
-	printf("%s\n", ci_fn);
-	ci_fp = fopen(ci_fn, "w");
-	fprintf(ci_fp,
-		"AUTH: ydb_int_t * AUTH^%s(I:ydb_char_t*, I:ydb_char_t*, I:ydb_char_t*)\n"
-		"ACL:  ydb_int_t* ACL^%s(I:ydb_char_t*, I:ydb_char_t*, I:ydb_int_t, I:ydb_char_t*, I:ydb_int_t, I:ydb_char_t*, O:ydb_char_t *)\n"
-		"TICK: ydb_char_t * TICK^MOSQUITTO()\n"
-		, rou, rou
-	);
-	fclose(ci_fp);
-	setenv("ydb_ci", ci_fn, 1);
-	
-	//user_data beschreiben - derzeit nicht genutzt, nur zum Lernen!
-	// char userdata_text[] = "123";
-	// *user_data = mosquitto_malloc(sizeof(userdata_text));
-	// memcpy(*user_data, userdata_text, sizeof(userdata_text));
 
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
@@ -380,8 +360,6 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
 {
-	remove(ci_fn);
-
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
 }
