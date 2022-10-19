@@ -40,8 +40,8 @@ int max_mq_receive_per_tick = 10;
 Json::StreamWriterBuilder builder;
 c_ydb_global _articles("^articles");
 bool literal_to_json(Json::Value *json, char *literal);
-bool publish_response_message(string topic, Json::Value *payload); 
-bool publish_response_message(string topic, string payload);
+bool publish_mqtt_message(string topic, Json::Value *payload); 
+bool publish_mqtt_message(string topic, string payload);
 
 #define UNUSED(A) (void)(A)
 
@@ -113,7 +113,7 @@ int receive_mq_messages()
 {
 	if(mq_descriptor == -1) {
 		int errsv = errno;
-		// cout << "open: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; // TODO: couts durch mosquitto logs ersetzen
+		mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq_descriptor: %s %s" , strerrorname_np(errsv), strerror(errsv));
 		return MOSQ_ERR_SUCCESS;
 	}
 
@@ -121,7 +121,7 @@ int receive_mq_messages()
 
 	if(mq_getattr(mq_descriptor, &attr) == -1) {
 		int errsv = errno;
-		// cout << "attr: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; //TODO: activate again and make a log message out of it?
+		mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq_descriptor: %s %s" , strerrorname_np(errsv), strerror(errsv));
 		return MOSQ_ERR_SUCCESS;
 	}
 
@@ -136,9 +136,7 @@ int receive_mq_messages()
 			vector<char> topic(buffer.begin(), delimiter_element );
 			vector<char> payload(delimiter_element + 1, buffer.end());
 			
-			cout << "TOPIC: " << topic.data() << " PAYLOAD: " << payload.data() << endl;
-
-			publish_response_message(topic.data(), payload.data()); // TODO: rename function
+			publish_mqtt_message(topic.data(), payload.data());
 		}
 	}
 
@@ -155,7 +153,7 @@ bool literal_to_json(Json::Value *json, char *literal) {
 	return true;
 }
 
-bool publish_response_message(string topic, string payload) {
+bool publish_mqtt_message(string topic, string payload) {
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
@@ -168,7 +166,7 @@ bool publish_response_message(string topic, string payload) {
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
-bool publish_response_message(string topic, Json::Value &payload) {  
+bool publish_mqtt_message(string topic, Json::Value &payload) {  
 	string serialized_payload = Json::writeString(builder, payload);
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
@@ -209,7 +207,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	if(!literal_to_json(&request_payload, (char*)ed->payload)) {
 		response_payload["rc"] = -1;
-		publish_response_message(response_topic, response_payload);
+		publish_mqtt_message(response_topic, response_payload);
 
 		return MOSQ_ERR_SUCCESS; 
 	}
@@ -225,7 +223,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			json_array_index += 1;
 		}
 
-		publish_response_message(response_topic, response_payload);
+		publish_mqtt_message(response_topic, response_payload);
 
 		return MOSQ_ERR_SUCCESS;
 	} 
@@ -243,7 +241,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			response_payload["rc"] = -1;
 		}
 
-		publish_response_message(response_topic, response_payload);
+		publish_mqtt_message(response_topic, response_payload);
 	
 		return MOSQ_ERR_SUCCESS;
 	}
@@ -257,7 +255,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 		if(!_articles[article_id].hasChilds()) {
 			response_payload["rc"] = -3;
-			publish_response_message(response_topic, response_payload);
+			publish_mqtt_message(response_topic, response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -271,7 +269,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 				response_payload["rc"] = -1;
 			}
 
-			publish_response_message(response_topic, response_payload);
+			publish_mqtt_message(response_topic, response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -279,7 +277,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(bid >= maxbid + 1) { // erfolgreich ueberboten
 			response_payload["rc"] = 1;
 
-			publish_response_message(response_topic, response_payload);
+			publish_mqtt_message(response_topic, response_payload);
 
 			string previous_winner_response_topic = "mqttfetch/aabay/" + (string)_articles[article_id]["client"] + "/to/-1";
 			cout << previous_winner_response_topic << endl;
@@ -287,11 +285,11 @@ static int callback_message(int event, void *event_data, void *userdata)
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
 
-			publish_response_message(previous_winner_response_topic, previous_winner_response_payload);
+			publish_mqtt_message(previous_winner_response_topic, previous_winner_response_payload);
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
 			string bid_notice_payload = to_string(maxbid+1); 
-			publish_response_message(bid_notice_topic, bid_notice_payload);
+			publish_mqtt_message(bid_notice_topic, bid_notice_payload);
 
 			_articles[article_id]["bid"] = maxbid + 1;
 			_articles[article_id]["maxbid"] = bid;
@@ -306,11 +304,11 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
 			string bid_notice_payload = to_string(bid);
-			publish_response_message(bid_notice_topic, bid_notice_payload);
+			publish_mqtt_message(bid_notice_topic, bid_notice_payload);
 
 			response_payload["rc"] = -2;
 
-			publish_response_message(response_topic, response_payload);
+			publish_mqtt_message(response_topic, response_payload);
 			return MOSQ_ERR_SUCCESS;
 		}
 
@@ -319,7 +317,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	response_payload["rc"] = -1;
 
-	publish_response_message(response_topic, response_payload);
+	publish_mqtt_message(response_topic, response_payload);
 
 	return MOSQ_ERR_SUCCESS;
 }
