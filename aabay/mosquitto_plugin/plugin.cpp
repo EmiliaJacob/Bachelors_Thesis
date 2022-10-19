@@ -181,6 +181,15 @@ static int callback_message(int event, void *event_data, void *userdata)
 	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data; // TODO: wirklich noetig oder nur fuer kuerzere Aufrufe?
 
 	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) {
+		mosquitto_broker_publish_copy( // TODO: do you also have to this in ACL check?
+			NULL,
+			ed->topic,
+			strlen((char*)ed->payload), 
+			ed->payload,
+			QOS_RESPONSE,
+			RETAIN_RESPONSE,
+			PROPERTIES_RESPONSE
+		);
 		return MOSQ_ERR_SUCCESS;
 	}
 
@@ -311,9 +320,9 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	// return receive_mq_messages();
+	return receive_mq_messages();
 	// return get_and_send_spooled_messages();
-	return MOSQ_ERR_SUCCESS;
+	// return MOSQ_ERR_SUCCESS;
 }
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
