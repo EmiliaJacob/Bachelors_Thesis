@@ -31,10 +31,12 @@
 #include "ydb-global.h"
 #include <regex>
 #include "json.h"
+#include <vector>
 #include <sstream>
 using std::istringstream;
 using std::string;
 using std::cout;
+using std::vector;
 
 // message callback
 Json::StreamWriterBuilder builder;
@@ -62,7 +64,7 @@ int receive_mq_messages();
 
 int get_and_send_spooled_messages()
 {
-	c_ydb_global _mqttspool("^ms"); // TODO: Make static
+	c_ydb_global _mqttspool("^ms"); // TODO: Make static | Where should declaration be in C++?
 	c_ydb_global dummy("dummy");
 
 	string iterator = "";
@@ -70,6 +72,7 @@ int get_and_send_spooled_messages()
 	if(!_mqttspool.hasChilds())
 		return MOSQ_ERR_SUCCESS;
 
+	cout << "TEST" << endl;
 	int lock_result =_mqttspool.lock_inc(0);
 
 	if(lock_result != YDB_OK) {
@@ -109,32 +112,37 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-int receive_mq_messages() 
+int receive_mq_messages()  // TODO: read a fixed number of messages each call
 {
-	mqd_t mq_d = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
+	mqd_t mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 
-	if(mq_d == -1) {
+	if(mq_descriptor == -1) {
 		int errsv = errno;
-		cout << "open: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
+		// cout << "open: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; // TODO: couts durch mosquitto logs ersetzen
 		return MOSQ_ERR_SUCCESS;
 	}
 
 	struct mq_attr attr;
 
-	if(mq_getattr(mq_d, &attr) == -1) {
+	if(mq_getattr(mq_descriptor, &attr) == -1) {
 		int errsv = errno;
-		cout << "attr: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
+		// cout << "attr: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; //TODO: activate again and make a log message out of it?
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	char buffer[attr.mq_msgsize];
-	if(mq_receive(mq_d, buffer, attr.mq_msgsize, NULL) == -1) {
+	// char buffer[attr.mq_msgsize]; // doesnt work in c++ is only a plugin of g++
+	vector<char> buffer(attr.mq_msgsize);
+
+	if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { //passiert wenn queue leer ist
 		int errsv = errno;
-		cout << "rcv: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
 		return MOSQ_ERR_SUCCESS;
 	}
 	else {
-		cout << buffer << endl;
+		vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
+		vector<char> topic(buffer.begin(), delimiter_element );
+		vector<char> payload(delimiter_element + 1, buffer.end());
+
+		publish_response_message(topic.data(), payload.data()); // TODO: rename function
 	}
 	return MOSQ_ERR_SUCCESS;
 }
@@ -177,12 +185,24 @@ bool publish_response_message(string topic, Json::Value &payload) {
 }
 static int callback_message(int event, void *event_data, void *userdata)
 {
-	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data;
+	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data; // TODO: wirklich noetig oder nur fuer kuerzere Aufrufe?
+
+	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) {
+		mosquitto_broker_publish_copy( // TODO: do you also have to this in ACL check?
+			NULL,
+			ed->topic,
+			strlen((char*)ed->payload), 
+			ed->payload,
+			QOS_RESPONSE,
+			RETAIN_RESPONSE,
+			PROPERTIES_RESPONSE
+		);
+		return MOSQ_ERR_SUCCESS;
+	}
+
+	string response_topic = regex_replace(ed->topic, regex("/fr/"), "/to/");
 
 	const char *client_id = mosquitto_client_id(ed->client);
-
-	string request_topic(ed->topic); // TODO: vllt variabel entfernen
-	string response_topic = regex_replace(request_topic, regex("/fr/"), "/to/");
 
 	Json::Value request_payload;
 	Json::Value response_payload;
@@ -307,9 +327,9 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	//return receive_mq_message();
+	return receive_mq_messages();
 	// return get_and_send_spooled_messages();
-	return MOSQ_ERR_SUCCESS;
+	// return MOSQ_ERR_SUCCESS;
 }
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)

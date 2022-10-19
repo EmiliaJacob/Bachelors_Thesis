@@ -1,2 +1,0 @@
-gcc -c ydb-mqtt-set.c -I/home/emi/mosquitto/include/ `pkg-config --cflags    yottadb` -I/home/emi/mosquitto/client/
-
