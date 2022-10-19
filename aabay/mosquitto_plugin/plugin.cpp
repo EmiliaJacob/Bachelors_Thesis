@@ -34,6 +34,7 @@ using std::vector;
 
 char *sync_mode = "client";
 mqd_t mq_descriptor = -1;
+int max_mq_receive_per_tick = 10;
 
 // message callback
 Json::StreamWriterBuilder builder;
@@ -108,7 +109,7 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-int receive_mq_messages()  // TODO: read a fixed number of messages each call
+int receive_mq_messages() 
 {
 	if(mq_descriptor == -1) {
 		int errsv = errno;
@@ -126,17 +127,19 @@ int receive_mq_messages()  // TODO: read a fixed number of messages each call
 
 	vector<char> buffer(attr.mq_msgsize);
 
-	if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
-		int errsv = errno;
-	}
-	else {
-		vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
-		vector<char> topic(buffer.begin(), delimiter_element );
-		vector<char> payload(delimiter_element + 1, buffer.end());
-		
-		cout << "TOPIC: " << topic.data() << " PAYLOAD: " << payload.data() << endl;
+	for (int i=0; i<max_mq_receive_per_tick; i++) {
+		if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
+			return MOSQ_ERR_SUCCESS;
+		}
+		else {
+			vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
+			vector<char> topic(buffer.begin(), delimiter_element );
+			vector<char> payload(delimiter_element + 1, buffer.end());
+			
+			cout << "TOPIC: " << topic.data() << " PAYLOAD: " << payload.data() << endl;
 
-		publish_response_message(topic.data(), payload.data()); // TODO: rename function
+			publish_response_message(topic.data(), payload.data()); // TODO: rename function
+		}
 	}
 
 	return MOSQ_ERR_SUCCESS;
