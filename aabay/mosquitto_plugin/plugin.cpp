@@ -133,6 +133,8 @@ int receive_mq_messages()  // TODO: read a fixed number of messages each call
 		vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
 		vector<char> topic(buffer.begin(), delimiter_element );
 		vector<char> payload(delimiter_element + 1, buffer.end());
+		
+		cout << "TOPIC: " << topic.data() << " PAYLOAD: " << payload.data() << endl;
 
 		publish_response_message(topic.data(), payload.data()); // TODO: rename function
 	}
