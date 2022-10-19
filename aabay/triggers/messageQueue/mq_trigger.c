@@ -9,13 +9,13 @@
 #define DELIMITER " "
 #define MQ_MSG_PRIO 1
 
-void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) // TODO: Do I have to cast the ydb-types / Can I?
+void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
 {
     int mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL);
     
     if(mq_descriptor == -1) {
-        //int latest_errno = errno;
-        // printf("%s %s\n", strerrorname_np(latest_errno), strerror(latest_errno));
+        int latest_errno = errno;
+        printf("%s %s\n", strerrorname_np(latest_errno), strerror(latest_errno));
         return;
     }
 
@@ -25,16 +25,12 @@ void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) // TODO: 
     strcat(mq_message, DELIMITER);
     strcat(mq_message, payload);
 
-    printf("\n");
-    printf("%s\n", mq_message);
-    printf("%ld\n", strlen(mq_message));
-
     //TODO: check if message size is bigger then setting maybe set the mq settings at one place in plugin setup and use a constant here? -> less independent tho
     int mq_sending_result = mq_send(mq_descriptor, mq_message, strlen(mq_message), MQ_MSG_PRIO);
 
     if(mq_sending_result == -1) {
-        //int latest_errno = errno;
-        // printf("%s %s\n", strerrorname_np(latest_errno), strerror(latest_errno));
+        int latest_errno = errno;
+        printf("%s %s\n", strerrorname_np(latest_errno), strerror(latest_errno));
     }
 
     free(mq_message);
