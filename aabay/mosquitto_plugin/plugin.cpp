@@ -36,6 +36,10 @@ char *sync_mode = "client";
 mqd_t mq_descriptor = -1;
 int max_mq_receive_per_tick = 10;
 
+c_ydb_global _mqttspool("^ms"); 
+c_ydb_global dummy("dummy");
+
+
 // message callback
 Json::StreamWriterBuilder builder;
 c_ydb_global _articles("^articles");
@@ -61,9 +65,6 @@ int receive_mq_messages();
 
 int get_and_send_spooled_messages()
 {
-	c_ydb_global _mqttspool("^ms"); // TODO: Make static | Where should declaration be in C++?
-	c_ydb_global dummy("dummy");
-
 	string iterator = "";
 
 	if(!_mqttspool.hasChilds())
@@ -138,7 +139,7 @@ int receive_mq_messages()
 				return MOSQ_ERR_SUCCESS;
 			}
 
-			vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
+			vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
 			vector<char> topic(buffer.begin(), delimiter_element );
 			vector<char> payload(delimiter_element + 1, buffer.end());
 			
