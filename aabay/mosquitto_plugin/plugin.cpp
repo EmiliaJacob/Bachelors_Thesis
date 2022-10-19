@@ -178,12 +178,15 @@ bool publish_response_message(string topic, Json::Value &payload) {
 }
 static int callback_message(int event, void *event_data, void *userdata)
 {
-	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data;
+	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data; // TODO: wirklich noetig oder nur fuer kuerzere Aufrufe?
+
+	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) {
+		return MOSQ_ERR_SUCCESS;
+	}
+
+	string response_topic = regex_replace(ed->topic, regex("/fr/"), "/to/");
 
 	const char *client_id = mosquitto_client_id(ed->client);
-
-	string request_topic(ed->topic); // TODO: vllt variabel entfernen
-	string response_topic = regex_replace(request_topic, regex("/fr/"), "/to/");
 
 	Json::Value request_payload;
 	Json::Value response_payload;
@@ -308,9 +311,9 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	return receive_mq_messages();
+	// return receive_mq_messages();
 	// return get_and_send_spooled_messages();
-	// return MOSQ_ERR_SUCCESS;
+	return MOSQ_ERR_SUCCESS;
 }
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
