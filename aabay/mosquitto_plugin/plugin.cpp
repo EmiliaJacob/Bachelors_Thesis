@@ -31,10 +31,12 @@
 #include "ydb-global.h"
 #include <regex>
 #include "json.h"
+#include <vector>
 #include <sstream>
 using std::istringstream;
 using std::string;
 using std::cout;
+using std::vector;
 
 // message callback
 Json::StreamWriterBuilder builder;
@@ -112,30 +114,35 @@ int get_and_send_spooled_messages()
 
 int receive_mq_messages()  // TODO: read a fixed number of messages each call
 {
-	mqd_t mq_d = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
+	mqd_t mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 
-	if(mq_d == -1) {
+	if(mq_descriptor == -1) {
 		int errsv = errno;
-		cout << "open: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
+		// cout << "open: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; // TODO: couts durch mosquitto logs ersetzen
 		return MOSQ_ERR_SUCCESS;
 	}
 
 	struct mq_attr attr;
 
-	if(mq_getattr(mq_d, &attr) == -1) {
+	if(mq_getattr(mq_descriptor, &attr) == -1) {
 		int errsv = errno;
-		cout << "attr: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
+		// cout << "attr: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; //TODO: activate again and make a log message out of it?
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	char buffer[attr.mq_msgsize];
-	if(mq_receive(mq_d, buffer, attr.mq_msgsize, NULL) == -1) {
+	// char buffer[attr.mq_msgsize]; // doesnt work in c++ is only a plugin of g++
+	vector<char> buffer(attr.mq_msgsize);
+
+	if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { //passiert wenn queue leer ist
 		int errsv = errno;
-		cout << "rcv: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl;
 		return MOSQ_ERR_SUCCESS;
 	}
 	else {
-		cout << buffer << endl;
+		vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
+		vector<char> topic(buffer.begin(), delimiter_element );
+		vector<char> payload(delimiter_element + 1, buffer.end());
+
+		publish_response_message(topic.data(), payload.data()); // TODO: rename function
 	}
 	return MOSQ_ERR_SUCCESS;
 }
