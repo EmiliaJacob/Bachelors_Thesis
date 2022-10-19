@@ -1,18 +1,11 @@
-
-/*
- Mosquitto-Plugin fuer YottaDB
- 
-
- dabei ist str ein laengencodierter String - siehe Funktion convert in M oder resp_2_send hier
- */
-#include <stdio.h>
-#include <string.h>
+#include <string.h> // TODO: use only c++ includes?
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+// Mosquitto
 #include "mosquitto_broker.h"
 #include "mosquitto_plugin.h"
-// #include "mosquitto_internal.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
 
@@ -33,7 +26,7 @@
 #include "json.h"
 #include <vector>
 #include <sstream>
-using std::istringstream;
+using std::istringstream; // TODO: does this make sense?
 using std::string;
 using std::cout;
 using std::vector;
@@ -48,7 +41,6 @@ bool publish_response_message(string topic, string payload);
 #define UNUSED(A) (void)(A)
 
 static mosquitto_plugin_id_t * mosq_pid = NULL;
-//static char *spooled_messages;
 
 static const int QOS_SPOOL = 0;
 static const bool RETAIN_SPOOL = false;
@@ -114,7 +106,7 @@ int get_and_send_spooled_messages()
 
 int receive_mq_messages()  // TODO: read a fixed number of messages each call
 {
-	mqd_t mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
+	mqd_t mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); // TODO: mq open in init function machen und spaeter wieder schliessen
 
 	if(mq_descriptor == -1) {
 		int errsv = errno;
@@ -130,12 +122,10 @@ int receive_mq_messages()  // TODO: read a fixed number of messages each call
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	// char buffer[attr.mq_msgsize]; // doesnt work in c++ is only a plugin of g++
 	vector<char> buffer(attr.mq_msgsize);
 
-	if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { //passiert wenn queue leer ist
+	if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
 		int errsv = errno;
-		return MOSQ_ERR_SUCCESS;
 	}
 	else {
 		vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
@@ -144,6 +134,7 @@ int receive_mq_messages()  // TODO: read a fixed number of messages each call
 
 		publish_response_message(topic.data(), payload.data()); // TODO: rename function
 	}
+
 	return MOSQ_ERR_SUCCESS;
 }
 
@@ -327,7 +318,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	return receive_mq_messages();
+	return receive_mq_messages(); // TODO: set this per config variable
 	// return get_and_send_spooled_messages();
 	// return MOSQ_ERR_SUCCESS;
 }
