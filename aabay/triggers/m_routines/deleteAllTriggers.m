@@ -1,1 +1,0 @@
- w $ZTRIGGER("file","/home/emi/ydbay/aabay/triggers/trigger_defintion_files/deleteAll.trg")
