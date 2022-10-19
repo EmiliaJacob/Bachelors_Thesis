@@ -1,18 +1,11 @@
-
-/*
- Mosquitto-Plugin fuer YottaDB
- 
-
- dabei ist str ein laengencodierter String - siehe Funktion convert in M oder resp_2_send hier
- */
-#include <stdio.h>
-#include <string.h>
+#include <string.h> // TODO: use only c++ includes?
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+// Mosquitto
 #include "mosquitto_broker.h"
 #include "mosquitto_plugin.h"
-// #include "mosquitto_internal.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
 
@@ -33,22 +26,30 @@
 #include "json.h"
 #include <vector>
 #include <sstream>
-using std::istringstream;
+using std::istringstream; // TODO: does this make sense?
 using std::string;
 using std::cout;
 using std::vector;
+
+
+char *sync_mode = "client";
+mqd_t mq_descriptor = -1;
+int max_mq_receive_per_tick = 10;
+
+c_ydb_global _mqttspool("^ms"); 
+c_ydb_global dummy("dummy");
+
 
 // message callback
 Json::StreamWriterBuilder builder;
 c_ydb_global _articles("^articles");
 bool literal_to_json(Json::Value *json, char *literal);
-bool publish_response_message(string topic, Json::Value *payload); 
-bool publish_response_message(string topic, string payload);
+bool publish_mqtt_message(string topic, Json::Value *payload); 
+bool publish_mqtt_message(string topic, string payload);
 
 #define UNUSED(A) (void)(A)
 
 static mosquitto_plugin_id_t * mosq_pid = NULL;
-//static char *spooled_messages;
 
 static const int QOS_SPOOL = 0;
 static const bool RETAIN_SPOOL = false;
@@ -64,9 +65,6 @@ int receive_mq_messages();
 
 int get_and_send_spooled_messages()
 {
-	c_ydb_global _mqttspool("^ms"); // TODO: Make static | Where should declaration be in C++?
-	c_ydb_global dummy("dummy");
-
 	string iterator = "";
 
 	if(!_mqttspool.hasChilds())
@@ -112,13 +110,11 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-int receive_mq_messages()  // TODO: read a fixed number of messages each call
+int receive_mq_messages() 
 {
-	mqd_t mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
-
 	if(mq_descriptor == -1) {
 		int errsv = errno;
-		// cout << "open: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; // TODO: couts durch mosquitto logs ersetzen
+		mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq_descriptor: %s %s" , strerrorname_np(errsv), strerror(errsv));
 		return MOSQ_ERR_SUCCESS;
 	}
 
@@ -126,24 +122,31 @@ int receive_mq_messages()  // TODO: read a fixed number of messages each call
 
 	if(mq_getattr(mq_descriptor, &attr) == -1) {
 		int errsv = errno;
-		// cout << "attr: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; //TODO: activate again and make a log message out of it?
+		mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq_descriptor: %s %s" , strerrorname_np(errsv), strerror(errsv));
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	// char buffer[attr.mq_msgsize]; // doesnt work in c++ is only a plugin of g++
 	vector<char> buffer(attr.mq_msgsize);
 
-	if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { //passiert wenn queue leer ist
-		int errsv = errno;
-		return MOSQ_ERR_SUCCESS;
-	}
-	else {
-		vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' '); //TODO: sollte Format der message irgendo ueberprueft werden?
-		vector<char> topic(buffer.begin(), delimiter_element );
-		vector<char> payload(delimiter_element + 1, buffer.end());
+	for (int i=0; i<max_mq_receive_per_tick; i++) {
+		if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
+			return MOSQ_ERR_SUCCESS;
+		}
+		else {
 
-		publish_response_message(topic.data(), payload.data()); // TODO: rename function
+			if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)"))) {
+				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq message format" );
+				return MOSQ_ERR_SUCCESS;
+			}
+
+			vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
+			vector<char> topic(buffer.begin(), delimiter_element );
+			vector<char> payload(delimiter_element + 1, buffer.end());
+			
+			publish_mqtt_message(topic.data(), payload.data());
+		}
 	}
+
 	return MOSQ_ERR_SUCCESS;
 }
 
@@ -157,7 +160,7 @@ bool literal_to_json(Json::Value *json, char *literal) {
 	return true;
 }
 
-bool publish_response_message(string topic, string payload) {
+bool publish_mqtt_message(string topic, string payload) {
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
@@ -170,7 +173,7 @@ bool publish_response_message(string topic, string payload) {
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
-bool publish_response_message(string topic, Json::Value &payload) {  
+bool publish_mqtt_message(string topic, Json::Value &payload) {  
 	string serialized_payload = Json::writeString(builder, payload);
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
@@ -183,6 +186,7 @@ bool publish_response_message(string topic, Json::Value &payload) {
 	);
 	return (result == MOSQ_ERR_SUCCESS);
 }
+
 static int callback_message(int event, void *event_data, void *userdata)
 {
 	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data; // TODO: wirklich noetig oder nur fuer kuerzere Aufrufe?
@@ -210,7 +214,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	if(!literal_to_json(&request_payload, (char*)ed->payload)) {
 		response_payload["rc"] = -1;
-		publish_response_message(response_topic, response_payload);
+		publish_mqtt_message(response_topic, response_payload);
 
 		return MOSQ_ERR_SUCCESS; 
 	}
@@ -226,7 +230,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			json_array_index += 1;
 		}
 
-		publish_response_message(response_topic, response_payload);
+		publish_mqtt_message(response_topic, response_payload);
 
 		return MOSQ_ERR_SUCCESS;
 	} 
@@ -244,7 +248,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			response_payload["rc"] = -1;
 		}
 
-		publish_response_message(response_topic, response_payload);
+		publish_mqtt_message(response_topic, response_payload);
 	
 		return MOSQ_ERR_SUCCESS;
 	}
@@ -258,7 +262,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 		if(!_articles[article_id].hasChilds()) {
 			response_payload["rc"] = -3;
-			publish_response_message(response_topic, response_payload);
+			publish_mqtt_message(response_topic, response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -272,7 +276,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 				response_payload["rc"] = -1;
 			}
 
-			publish_response_message(response_topic, response_payload);
+			publish_mqtt_message(response_topic, response_payload);
 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -280,7 +284,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(bid >= maxbid + 1) { // erfolgreich ueberboten
 			response_payload["rc"] = 1;
 
-			publish_response_message(response_topic, response_payload);
+			publish_mqtt_message(response_topic, response_payload);
 
 			string previous_winner_response_topic = "mqttfetch/aabay/" + (string)_articles[article_id]["client"] + "/to/-1";
 			cout << previous_winner_response_topic << endl;
@@ -288,11 +292,11 @@ static int callback_message(int event, void *event_data, void *userdata)
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
 
-			publish_response_message(previous_winner_response_topic, previous_winner_response_payload);
+			publish_mqtt_message(previous_winner_response_topic, previous_winner_response_payload);
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
 			string bid_notice_payload = to_string(maxbid+1); 
-			publish_response_message(bid_notice_topic, bid_notice_payload);
+			publish_mqtt_message(bid_notice_topic, bid_notice_payload);
 
 			_articles[article_id]["bid"] = maxbid + 1;
 			_articles[article_id]["maxbid"] = bid;
@@ -307,11 +311,11 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
 			string bid_notice_payload = to_string(bid);
-			publish_response_message(bid_notice_topic, bid_notice_payload);
+			publish_mqtt_message(bid_notice_topic, bid_notice_payload);
 
 			response_payload["rc"] = -2;
 
-			publish_response_message(response_topic, response_payload);
+			publish_mqtt_message(response_topic, response_payload);
 			return MOSQ_ERR_SUCCESS;
 		}
 
@@ -320,16 +324,22 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	response_payload["rc"] = -1;
 
-	publish_response_message(response_topic, response_payload);
+	publish_mqtt_message(response_topic, response_payload);
 
 	return MOSQ_ERR_SUCCESS;
 }
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	return receive_mq_messages();
-	// return get_and_send_spooled_messages();
-	// return MOSQ_ERR_SUCCESS;
+	if(!strcmp(sync_mode, "mq")) // TODO: replace char* by string
+		return receive_mq_messages(); 
+
+	else if(!strcmp(sync_mode, "global"))
+		return get_and_send_spooled_messages();
+
+	else { // sync_mode = "client"
+		return MOSQ_ERR_SUCCESS;
+	}
 }
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
@@ -344,41 +354,27 @@ int mosquitto_plugin_version(int supported_version_count, const int *supported_v
 	return -1;
 }
 
-char ci_fn[64];
- 
 int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, struct mosquitto_opt *opts, int opt_count)
 {
-	//int rc;
-	char * rou;
-	FILE * ci_fp;
 	mosq_pid = identifier;
-	
-	// Optionen auswerten
-	mosquitto_log_printf(MOSQ_LOG_INFO, "init %d\n", opt_count);
+
+	mosquitto_log_printf(MOSQ_LOG_INFO, "Init %d\n", opt_count);
+
 	for (int i = 0; i < opt_count; i++) {
-		mosquitto_log_printf(MOSQ_LOG_INFO, "\t%d %s %s\n", i, opts[i].key + 4, opts[i].value);
-		if (!strncmp(opts[i].key, "env-", 4))
-			setenv(opts[i].key + 4, opts[i].value, 1);
-		else if (!strcmp(opts[i].key, "rou"))
-			rou = opts[i].value, mosquitto_log_printf(MOSQ_LOG_INFO, "Routine '%s'\n", rou);
+		if(!strcmp(opts[i].key, "sync_mode")) {
+			if(!strcmp(opts[i].value,"client") || !strcmp(opts[i].value,"mq") || !strcmp(opts[i].value,"global")) {
+				mosquitto_log_printf(MOSQ_LOG_INFO, "Selected Sync Mode: %s", opts[i].value);
+				sync_mode = opts[i].value;
+			}
+			else {
+				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid Sync Mode %s" , sync_mode);
+			}
+		}
 	}
-	
-	sprintf(ci_fn, "/tmp/mosquitto-ydb-%d.ci", getpid());
-	printf("%s\n", ci_fn);
-	ci_fp = fopen(ci_fn, "w");
-	fprintf(ci_fp,
-		"AUTH: ydb_int_t * AUTH^%s(I:ydb_char_t*, I:ydb_char_t*, I:ydb_char_t*)\n"
-		"ACL:  ydb_int_t* ACL^%s(I:ydb_char_t*, I:ydb_char_t*, I:ydb_int_t, I:ydb_char_t*, I:ydb_int_t, I:ydb_char_t*, O:ydb_char_t *)\n"
-		"TICK: ydb_char_t * TICK^MOSQUITTO()\n"
-		, rou, rou
-	);
-	fclose(ci_fp);
-	setenv("ydb_ci", ci_fn, 1);
-	
-	//user_data beschreiben - derzeit nicht genutzt, nur zum Lernen!
-	// char userdata_text[] = "123";
-	// *user_data = mosquitto_malloc(sizeof(userdata_text));
-	// memcpy(*user_data, userdata_text, sizeof(userdata_text));
+
+	if(!strcmp(sync_mode, "mq")){
+		mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
+	}
 
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
@@ -386,7 +382,11 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
 {
-	remove(ci_fn);
+	if(!strcmp(sync_mode, "mq")){
+		if(mq_descriptor != -1) {
+			mq_close(mq_descriptor);
+		}
+	}
 
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
