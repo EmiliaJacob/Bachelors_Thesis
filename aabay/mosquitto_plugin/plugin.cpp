@@ -33,6 +33,7 @@ using std::vector;
 
 
 char *sync_mode = "client";
+mqd_t mq_descriptor = -1;
 
 // message callback
 Json::StreamWriterBuilder builder;
@@ -109,8 +110,6 @@ int get_and_send_spooled_messages()
 
 int receive_mq_messages()  // TODO: read a fixed number of messages each call
 {
-	mqd_t mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); // TODO: mq open in init function machen und spaeter wieder schliessen
-
 	if(mq_descriptor == -1) {
 		int errsv = errno;
 		// cout << "open: " << strerrorname_np(errsv) << "  " << strerror(errsv) << endl; // TODO: couts durch mosquitto logs ersetzen
@@ -177,6 +176,7 @@ bool publish_response_message(string topic, Json::Value &payload) {
 	);
 	return (result == MOSQ_ERR_SUCCESS);
 }
+
 static int callback_message(int event, void *event_data, void *userdata)
 {
 	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data; // TODO: wirklich noetig oder nur fuer kuerzere Aufrufe?
@@ -321,9 +321,15 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	return receive_mq_messages(); // TODO: set this per config variable
-	// return get_and_send_spooled_messages();
-	// return MOSQ_ERR_SUCCESS;
+	if(!strcmp(sync_mode, "mq")) // TODO: replace char* by string
+		return receive_mq_messages(); 
+
+	else if(!strcmp(sync_mode, "global"))
+		return get_and_send_spooled_messages();
+
+	else { // sync_mode = "client"
+		return MOSQ_ERR_SUCCESS;
+	}
 }
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
@@ -354,12 +360,20 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		}
 	}
 
+	if(!strcmp(sync_mode, "mq")){
+		mqd_t mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); // TODO: mq open in init function machen und spaeter wieder schliessen
+	}
+
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
 }
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
 {
+	if(!strcmp(sync_mode, "mq")){
+		mqd_t mq_descriptor = mq_close("/mqttspool");
+	}
+
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
 }
