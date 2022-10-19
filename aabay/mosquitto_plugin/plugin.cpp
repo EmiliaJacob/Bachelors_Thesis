@@ -352,6 +352,9 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 			setenv(opts[i].key + 4, opts[i].value, 1);
 		else if (!strcmp(opts[i].key, "rou"))
 			rou = opts[i].value, mosquitto_log_printf(MOSQ_LOG_INFO, "Routine '%s'\n", rou);
+		else if(strcmp(opts[i].key, "sync_mode")) {
+			cout << "MODE " << opts[i].value << endl;
+		}
 	}
 	
 	sprintf(ci_fn, "/tmp/mosquitto-ydb-%d.ci", getpid());
