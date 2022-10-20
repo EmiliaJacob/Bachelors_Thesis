@@ -20,6 +20,7 @@
 
 // C++ 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include "ydb-global.h"
 #include <regex>
@@ -347,15 +348,48 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 }
 
 int counter = 0;
+struct Timer
+{
+	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
+	std::chrono::duration<float> duration;
+	ofstream time_log;
+
+	Timer()
+	{
+		start = std::chrono::high_resolution_clock::now();
+		time_log.open("global_time_log.md", ios_base::app);
+	}
+
+	~Timer()
+	{
+		end = std::chrono::high_resolution_clock::now();
+		duration = end - start;
+
+		float ms = duration.count() * 1000.0f;
+		std::cout << "Timer took :" << ms << "ms" << std::endl;
+		time_log << to_string(ms) + "\n";
+		time_log.close();
+	}
+};
+
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	c_ydb_global _articles("^articles");
-	_articles["123"]["bid"] = ++counter;
-	if(!strcmp(sync_mode, "mq")) // TODO: replace char* by string
-		return receive_mq_messages(); 
 
-	else if(!strcmp(sync_mode, "global"))
-		return get_and_send_spooled_messages();
+	if(!strcmp(sync_mode, "mq")) {
+		Timer timer;
+		c_ydb_global _articles("^articles");
+		_articles["123"]["bid"] = ++counter;
+		receive_mq_messages(); 
+		return MOSQ_ERR_SUCCESS;
+	}
+
+	else if(!strcmp(sync_mode, "global")) {
+		Timer timer;
+		c_ydb_global _articles("^articles");
+		_articles["123"]["bid"] = ++counter;
+		get_and_send_spooled_messages();
+		return MOSQ_ERR_SUCCESS;
+	}
 
 	else { // sync_mode = "client"
 		return MOSQ_ERR_SUCCESS;
