@@ -346,8 +346,11 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 	return MOSQ_ERR_SUCCESS;
 }
 
+int counter = 0;
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
+	c_ydb_global _articles("^articles");
+	_articles["123"]["bid"] = ++counter;
 	if(!strcmp(sync_mode, "mq")) // TODO: replace char* by string
 		return receive_mq_messages(); 
 
