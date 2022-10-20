@@ -189,7 +189,7 @@ bool publish_mqtt_message(string topic, Json::Value &payload) {
 
 static int callback_message(int event, void *event_data, void *userdata)
 {
-	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data; // TODO: wirklich noetig oder nur fuer kuerzere Aufrufe?
+	struct mosquitto_evt_message * ed = (mosquitto_evt_message*)event_data; 
 
 	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) {
 		mosquitto_broker_publish_copy( // TODO: do you also have to this in ACL check?
@@ -220,7 +220,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 	}
 
 	if(request_payload["action"] == "get_articles") {
-		string iterator = ""; // TODO: where is the best place to declare variables in c++?
+		string iterator = "";
 		int json_array_index = 0;
 		
 		while(iterator=_articles[iterator].nextSibling(), iterator!="") {
@@ -236,7 +236,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 	} 
 
 	if(request_payload["action"] == "get_article") {
-		string requested_article_id = request_payload["id"].asString(); // TODO: move prop out
+		string requested_article_id = request_payload["id"].asString(); 
 
 		if(_articles[requested_article_id].hasChilds()) {
 			response_payload["article"]["id"] = requested_article_id;
@@ -257,7 +257,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		string article_id = request_payload["id"].asString();
 		string nickname = request_payload["nickname"].asString(); 
 
-		int bid = stoi(request_payload["bid"].asString());// TODO: maybe change everywhere to int
+		int bid = stoi(request_payload["bid"].asString()); // TODO: maybe change everywhere to int
 		int maxbid = stoi(_articles[article_id]["maxbid"]); 
 
 		if(!_articles[article_id].hasChilds()) {
