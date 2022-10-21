@@ -195,23 +195,9 @@ bool publish_mqtt_message(string topic, Json::Value &payload) {
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
-void client_time_measure(struct mosquitto_evt_message *ed){
-	if(!strcmp(sync_mode, "client") && time_measure == true){
-		if(!strcmp(ed->topic, "time_measure")){
-			cout << "Send Time: " << (char*)ed->payload << endl;
-			auto current_time = std::chrono::high_resolution_clock::now();
-			time_t tt;
-			tt = std::chrono::system_clock::to_time_t(current_time);
-			cout << "Receive Time: " << ctime(&tt) << endl;
-		}
-	}
-}
-
 static int callback_message(int event, void *event_data, void *userdata) // TODO: client trigger wird momentan bei allen sync_modes weitergeleitet
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
-
-	client_time_measure(ed);
 
 	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) {
 		mosquitto_broker_publish_copy( // TODO: do you also have to this in ACL check?
@@ -309,7 +295,6 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 			publish_mqtt_message(response_topic, response_payload);
 
 			string previous_winner_response_topic = "mqttfetch/aabay/" + (string)_articles[article_id]["client"] + "/to/-1";
-			cout << previous_winner_response_topic << endl;
 
 			Json::Value previous_winner_response_payload;
 			previous_winner_response_payload["rc"] = -1;
@@ -363,9 +348,9 @@ struct Timer
 	{
 		if(counter % 100 == 0) {
 			cout << "SEND: " << counter << endl;
-			time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_logs/global_100.md", ios_base::app);
+			time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_logs/mq_100.md", ios_base::app);
 			start = std::chrono::high_resolution_clock::now();
-			_articles["123"]["bid"] = counter;
+			_articles["123"]["bid"] = counter; // TODO: wird hier auf Trigger gewartet?
 		}
 	}
 
