@@ -93,6 +93,9 @@ int get_and_send_spooled_messages()
 	iterator = "";
 
 	while(iterator=dummy[iterator].nextSibling(), iterator!=""){
+
+		cout << "RECEIVE: " << (string)dummy[iterator]["message"] << endl;
+
 		int result = mosquitto_broker_publish_copy(
 			NULL,
 			((string)dummy[iterator]["topic"]).c_str(),
@@ -146,6 +149,8 @@ int receive_mq_messages()
 			vector<char> topic(buffer.begin(), delimiter_element );
 			vector<char> payload(delimiter_element + 1, buffer.end());
 			
+			cout << "RECEIVE: " << payload.data() << endl;
+
 			publish_mqtt_message(topic.data(), payload.data());
 		}
 	}
@@ -347,6 +352,7 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 }
 
 int counter = 0;
+
 struct Timer
 {
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
@@ -355,19 +361,27 @@ struct Timer
 
 	Timer()
 	{
-		start = std::chrono::high_resolution_clock::now();
-		time_log.open("global_time_log.md", ios_base::app);
+		if(counter % 100 == 0) {
+			cout << "SEND: " << counter << endl;
+			time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_logs/global_100.md", ios_base::app);
+			start = std::chrono::high_resolution_clock::now();
+			_articles["123"]["bid"] = counter;
+		}
 	}
 
 	~Timer()
 	{
-		end = std::chrono::high_resolution_clock::now();
-		duration = end - start;
+		if(counter % 100 == 0) {
+			end = std::chrono::high_resolution_clock::now();
+			duration = end - start;
 
-		float ms = duration.count() * 1000.0f;
-		std::cout << "Timer took :" << ms << "ms" << std::endl;
-		time_log << to_string(ms) + "\n";
-		time_log.close();
+			float ms = duration.count() * 1000.0f;
+
+			std::cout << "TIMER FINISHED ON COUNTER " << counter << std::endl;
+			
+			time_log << to_string(ms) + "\n";
+			time_log.close();
+		}
 	}
 };
 
@@ -375,17 +389,15 @@ static int callback_tick(int event, void *event_data, void *userdata)
 {
 
 	if(!strcmp(sync_mode, "mq")) {
-		Timer timer;
-		c_ydb_global _articles("^articles");
-		_articles["123"]["bid"] = ++counter;
+		counter += 1;
+		Timer timer; // TODO: Es ist nicht garantiert, dass der aktuelle Trigger auch im selben Tick Aufruf wieder empfangen wird
 		receive_mq_messages(); 
 		return MOSQ_ERR_SUCCESS;
 	}
 
 	else if(!strcmp(sync_mode, "global")) {
+		counter += 1;
 		Timer timer;
-		c_ydb_global _articles("^articles");
-		_articles["123"]["bid"] = ++counter;
 		get_and_send_spooled_messages();
 		return MOSQ_ERR_SUCCESS;
 	}
