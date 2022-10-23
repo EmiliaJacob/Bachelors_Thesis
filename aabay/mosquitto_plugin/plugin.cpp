@@ -101,7 +101,12 @@ int get_and_send_spooled_messages()
 				double start_duration_rep = stod(((string)dummy[iterator]["message"]), NULL);
 				chrono::duration<double> start_duration(start_duration_rep);
 
-				chrono::duration<float> time_difference_float = stop_duration - start_duration;
+				chrono::duration<double> time_difference_double = stop_duration - start_duration;
+				double time_difference_double_in_ms = time_difference_double.count() * 1000;
+				ofstream time_log;
+				time_log.open("/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/global/everything", fstream::app | fstream::trunc);
+				time_log << to_string(time_difference_double_in_ms) + "\n";
+				time_log.close();
 			}
 			else {
 				int result = mosquitto_broker_publish_copy(
@@ -164,8 +169,12 @@ int receive_mq_messages()
 				double start_duration_rep = stod(payload.data(), NULL);
 				chrono::duration<double> start_duration(start_duration_rep);
 
-				chrono::duration<float> time_difference_float = stop_duration - start_duration;
-				cout << "Time difference: " << time_difference_float.count() * 1000 << "ms" << endl;
+				chrono::duration<double> time_difference_double = stop_duration - start_duration;
+				double time_difference_double_in_ms = time_difference_double.count() * 1000;
+				ofstream time_log;
+				time_log.open("/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/mq/everything", fstream::app | fstream::trunc);
+				time_log << to_string(time_difference_double_in_ms) + "\n";
+				time_log.close();
 			}
 			else {
 				vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
@@ -229,8 +238,13 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 			double start_duration_rep = stod(((char*)ed->payload), NULL);
 			chrono::duration<double> start_duration(start_duration_rep);
 
-			chrono::duration<float> time_difference_float = stop_duration - start_duration;
-			cout << "Time difference: " << time_difference_float.count() * 1000 << "ms" << endl;
+			chrono::duration<double> time_difference_double = stop_duration - start_duration;
+			double time_difference_double_in_ms = time_difference_double.count() * 1000;
+
+			ofstream time_log;
+			time_log.open("/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/client/everything", fstream::app | fstream::trunc);
+			time_log << to_string(time_difference_double_in_ms) + "\n";
+			time_log.close();
 		}
 	}
 
@@ -384,8 +398,7 @@ struct Timer
 	{
 		measure_internal = interval;
 		if(counter % measure_internal == 0) {
-			cout << "SEND: " << counter << endl;
-			time_log.open(filename, fstream::app | fstream::trunc);
+			time_log.open(filename, fstream::app); // TODO: add a way to trunc
 			start = std::chrono::high_resolution_clock::now();
 		}
 	}
@@ -398,8 +411,6 @@ struct Timer
 
 			float ms = duration.count() * 1000.0f;
 
-			std::cout << "TIMER FINISHED ON COUNTER " << counter << std::endl;
-			
 			time_log << to_string(ms) + "\n";
 			time_log.close();
 		}
