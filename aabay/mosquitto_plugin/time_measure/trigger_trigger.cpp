@@ -14,11 +14,11 @@ int main(int argc, char** argv)
 
   using namespace std::chrono; // TODO: Refactoring
 
-  high_resolution_clock::time_point start_point;
+  system_clock::time_point start_point;
   duration<double> start_duration;
   c_ydb_global _articles("^articles");
 
-  start_point = high_resolution_clock::now();
+  start_point = system_clock::now();
   start_duration = start_point.time_since_epoch();
   _articles[article_id]["bid"] = std::to_string(start_duration.count());// INFO: Die Reihenfolge der Nachrichten ist aktuell nicht messbar
 
