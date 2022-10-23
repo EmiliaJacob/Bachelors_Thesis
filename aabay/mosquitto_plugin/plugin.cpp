@@ -43,6 +43,10 @@ int max_mq_receive_per_tick = 10;
 c_ydb_global _mqttspool("^ms"); 
 c_ydb_global dummy("dummy");
 
+ofstream time_log_mq_trigger_to_publish;
+ofstream time_log_mq_receive_mq_messages;
+
+
 
 // message callback
 Json::StreamWriterBuilder builder;
@@ -69,16 +73,15 @@ int receive_mq_messages();
 
 int get_and_send_spooled_messages()
 {
-	string iterator = "";
-
 	if(!_mqttspool.hasChilds())
 		return MOSQ_ERR_SUCCESS;
 
-	int lock_result =_mqttspool.lock_inc(0);
+	int lock_inc_result =_mqttspool.lock_inc(0);
 
-	if(lock_result != YDB_OK) {
+	if(lock_inc_result != YDB_OK)  // Lock konnte nicht gesetzt werden
 		return MOSQ_ERR_SUCCESS;
-	}
+
+	string iterator = "";
 
 	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){ 
 		dummy[iterator] = iterator;		
@@ -131,7 +134,7 @@ int get_and_send_spooled_messages()
 
 int receive_mq_messages() 
 {
-	chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now(); // relevant, wenn funktionsdauer gemessen werden soll
+	chrono::high_resolution_clock::time_point start_function_time = chrono::high_resolution_clock::now(); 
 
 	if(mq_descriptor == -1) {
 		int errsv = errno;
@@ -143,74 +146,60 @@ int receive_mq_messages()
 
 	if(mq_getattr(mq_descriptor, &attr) == -1) {
 		int errsv = errno;
-		mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq_descriptor: %s %s" , strerrorname_np(errsv), strerror(errsv));
+		mosquitto_log_printf(MOSQ_LOG_INFO, "Couldn't get mq Attributes: %s %s" , strerrorname_np(errsv), strerror(errsv));
 		return MOSQ_ERR_SUCCESS;
 	}
 
 	vector<char> buffer(attr.mq_msgsize);
 
-	for (int i=0; i<max_mq_receive_per_tick; i++) {
+	for (int i = 0; i < max_mq_receive_per_tick; i++) {
 		if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
-		else { // Mindestens eine Nachricht wurde gequeuet
-			if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)(([.][0-9]+)?)"))) {
-				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq message format" );
-				return MOSQ_ERR_SUCCESS;
-			}
 
+		if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)(([.][0-9]+)?)"))) {
+			mosquitto_log_printf(MOSQ_LOG_INFO, "Undesired mq message format" );
+			return MOSQ_ERR_SUCCESS;
+		}
+
+		else {
+			vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
+			vector<char> topic(buffer.begin(), delimiter_element );
+			vector<char> payload(delimiter_element + 1, buffer.end());
+			
 			if(time_measure_everything) {
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
-				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
-
-				vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
-				vector<char> topic(buffer.begin(), delimiter_element );
-				vector<char> payload(delimiter_element + 1, buffer.end());
+				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); 
 
 				double start_duration_rep = stod(payload.data(), NULL);
 				chrono::duration<double> start_duration(start_duration_rep);
 
-				chrono::duration<double> time_difference_double = stop_duration - start_duration;
-				double time_difference_double_in_ms = time_difference_double.count() * 1000;
-				ofstream time_log;
-				time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/mq/everything", fstream::app);
-				time_log << to_string(time_difference_double_in_ms) + "\n";
-				time_log.close();
-				
-				if(time_measure_read_out_functions) { 
-					chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
-					chrono::duration<double> difference = stop - start;
-					ofstream time_log;
-					time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/mq/read_out_function_time_measure", fstream::app); // TODO: do this only once and find a way to truncate these
-					time_log << to_string(difference.count()*1000) + "\n";
-					time_log.close();
-					return MOSQ_ERR_SUCCESS; // makes sure to measure only one message
-				}
-					
+				chrono::duration<double> time_difference = stop_duration - start_duration;
+				double time_difference_in_ms = time_difference.count() * 1000;
+
+				time_log_mq_trigger_to_publish << time_difference_in_ms + "\n";
 			}
-			else {
-				vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
-				vector<char> topic(buffer.begin(), delimiter_element );
-				vector<char> payload(delimiter_element + 1, buffer.end());
-				
+
+			if(time_measure_read_out_functions) { 
+				chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
+
+				chrono::duration<double> time_difference = stop - start_function_time;
+				double time_difference_in_ms = time_difference * 1000;
+
+				time_log_mq_receive_mq_messages << time_difference_in_ms + "\n";
+
 				publish_mqtt_message(topic.data(), payload.data());
 
-				if(time_measure_read_out_functions) { 
-					chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
-					chrono::duration<double> difference = stop - start;
-					cout << difference.count() << endl;
-					ofstream time_log;
-					time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/mq/read_out_function_normal", fstream::app); // TODO: do this only once and find a way to truncate these
-					time_log << to_string(difference.count()*1000) + "\n";
-					time_log.close();
-					return MOSQ_ERR_SUCCESS; // makes sure to measure only one message
-				}
+				return MOSQ_ERR_SUCCESS; 
 			}
+
+			publish_mqtt_message(topic.data(), payload.data());
 		}
 	}
 
 	return MOSQ_ERR_SUCCESS;
 }
+
 
 bool literal_to_json(Json::Value *json, char *literal) {
 	istringstream literal_stream (literal);
@@ -519,6 +508,9 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 	}
 
+	time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_logs/mq/trigger_to_publish", fstream::app);
+	time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_logs/mq/receive_mq_messages", fstream::app); 
+
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
 }
@@ -530,6 +522,9 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 			mq_close(mq_descriptor);
 		}
 	}
+
+	time_log_mq_trigger_to_publish.close();
+	time_log_mq_receive_mq_messages.close();
 
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
