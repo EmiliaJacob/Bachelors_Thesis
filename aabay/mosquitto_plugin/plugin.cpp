@@ -35,8 +35,8 @@ using std::cout;
 using std::vector;
 
 char *sync_mode = "client";
-bool time_measure_everything = false;
-bool time_measure_read_out_functions = false;
+bool time_measurement_trigger_to_publish = false;
+bool time_measurement_read_out_function = false;
 mqd_t mq_descriptor = -1;
 int max_mq_receive_per_tick = 10;
 
@@ -81,26 +81,26 @@ int get_and_send_spooled_messages()
 	if(lock_inc_result != YDB_OK)  // Lock konnte nicht gesetzt werden
 		return MOSQ_ERR_SUCCESS;
 
-	string iterator = "";
+	string interator_mqttspool = "";
 
-	while(iterator=_mqttspool[iterator].nextSibling(), iterator!=""){ 
-		dummy[iterator] = iterator;		
-		dummy[iterator]["topic"] = (string)_mqttspool[iterator]["topic"];
-		dummy[iterator]["clientid"] = (string)_mqttspool[iterator]["clientid"];
-		dummy[iterator]["message"] = (string)_mqttspool[iterator]["message"];
+	while(interator_mqttspool = _mqttspool[interator_mqttspool].nextSibling(), interator_mqttspool != "") { 
+		dummy[interator_mqttspool] = interator_mqttspool;		
+		dummy[interator_mqttspool]["topic"] = (string)_mqttspool[interator_mqttspool]["topic"];
+		dummy[interator_mqttspool]["clientid"] = (string)_mqttspool[interator_mqttspool]["clientid"];
+		dummy[interator_mqttspool]["message"] = (string)_mqttspool[interator_mqttspool]["message"];
 	}
 
 	_mqttspool.kill();
 	_mqttspool.lock_dec();
 
-	iterator = "";
+	string iterator_dummy = "";
 
-	while(iterator=dummy[iterator].nextSibling(), iterator!=""){
-			if(time_measure_everything) {
+	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") {
+			if(time_measurement_trigger_to_publish) {
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
 				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
 
-				double start_duration_rep = stod(((string)dummy[iterator]["message"]), NULL);
+				double start_duration_rep = stod(((string)dummy[iterator_dummy]["message"]), NULL);
 				chrono::duration<double> start_duration(start_duration_rep);
 
 				chrono::duration<double> time_difference_double = stop_duration - start_duration;
@@ -111,11 +111,11 @@ int get_and_send_spooled_messages()
 				time_log.close();
 			}
 			else {
-				int result = mosquitto_broker_publish_copy(
+				int result = mosquitto_broker_publish_copy( // TODO: replace with function
 					NULL,
-					((string)dummy[iterator]["topic"]).c_str(),
-					strlen(((string)dummy[iterator]["message"]).c_str()), 
-					((string)dummy[iterator]["message"]).c_str(),
+					((string)dummy[iterator_dummy]["topic"]).c_str(),
+					strlen(((string)dummy[iterator_dummy]["message"]).c_str()), 
+					((string)dummy[iterator_dummy]["message"]).c_str(),
 					QOS_SPOOL,
 					RETAIN_SPOOL,
 					PROPERTIES_SPOOL
@@ -167,7 +167,7 @@ int receive_mq_messages()
 			vector<char> topic(buffer.begin(), delimiter_element );
 			vector<char> payload(delimiter_element + 1, buffer.end());
 			
-			if(time_measure_everything) {
+			if(time_measurement_trigger_to_publish) {
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
 				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); 
 
@@ -180,7 +180,7 @@ int receive_mq_messages()
 				time_log_mq_trigger_to_publish << to_string(time_difference_in_ms) << "\n";
 			}
 
-			if(time_measure_read_out_functions) { 
+			if(time_measurement_read_out_function) { 
 				chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
 
 				chrono::duration<double> time_difference = stop - start_function_time;
@@ -241,7 +241,7 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
 
-	if(time_measure_everything && !strcmp(sync_mode, "client")) {
+	if(time_measurement_trigger_to_publish && !strcmp(sync_mode, "client")) {
 		if(!regex_match(ed->topic, regex("(aabay/bid/)([0-9]+)"))) { // Gesamte Funktionsaufrufsdauer wird etwas verfaelscht indem hier anderer Regex verwendet wird
 			chrono::system_clock::time_point stop_point = chrono::system_clock::now();
 			chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
@@ -396,38 +396,6 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 	return MOSQ_ERR_SUCCESS;
 }
 
-int counter = 0;
-
-struct Timer
-{
-	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-	std::chrono::duration<double> duration;
-	ofstream time_log;
-	int measure_interval;
-
-	Timer(int interval, char* filename)
-	{
-		measure_interval = interval;
-		if(counter % measure_interval == 0) {
-			time_log.open(filename, ios::app); // TODO: add a way to trunc
-			start = std::chrono::high_resolution_clock::now();
-		}
-	}
-
-	~Timer()
-	{
-		if(counter % measure_interval == 0) {
-			end = std::chrono::high_resolution_clock::now();
-			duration = end - start;
-
-			float ms = duration.count() * 1000.0f;
-
-			time_log << to_string(ms) + "\n";
-			time_log.close();
-		}
-	}
-};
-
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
 	if(!strcmp(sync_mode, "mq")) {
@@ -473,14 +441,14 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid Sync Mode %s" , sync_mode);
 			}
 		}
-		else if(!strcmp(opts[i].key, "time_measure_everything")) {
+		else if(!strcmp(opts[i].key, "time_measurement_trigger_to_publish")) {
 			if(!strcmp(opts[i].value, "true")) {
-				time_measure_everything = true;
+				time_measurement_trigger_to_publish = true;
 			}
 		}
-		else if(!strcmp(opts[i].key, "time_measure_read_out_functions")) {
+		else if(!strcmp(opts[i].key, "time_measurement_read_out_function")) {
 			if(!strcmp(opts[i].value, "true")) {
-				time_measure_read_out_functions = true;
+				time_measurement_read_out_function = true;
 			}
 
 		}
@@ -490,8 +458,8 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 	}
 
-	time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/time_logs/mq/trigger_to_publish");
-	time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/time_logs/mq/receive_mq_messages");
+	time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/mq/trigger_to_publish");
+	time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/time_measurements/mq/receive_mq_messages");
 
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
