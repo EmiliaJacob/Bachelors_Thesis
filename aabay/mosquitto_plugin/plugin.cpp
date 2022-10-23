@@ -200,7 +200,6 @@ int receive_mq_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-
 bool literal_to_json(Json::Value *json, char *literal) {
 	istringstream literal_stream (literal);
 	try {
