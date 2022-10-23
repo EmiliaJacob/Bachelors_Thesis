@@ -36,7 +36,8 @@ using std::vector;
 
 
 char *sync_mode = "client";
-bool time_measure = false;
+bool time_measure_everything = false;
+bool time_measure_read_out_functions = false;
 mqd_t mq_descriptor = -1;
 int max_mq_receive_per_tick = 10;
 
@@ -93,7 +94,7 @@ int get_and_send_spooled_messages()
 	iterator = "";
 
 	while(iterator=dummy[iterator].nextSibling(), iterator!=""){
-			if(time_measure) {
+			if(time_measure_everything) {
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
 				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
 
@@ -152,7 +153,7 @@ int receive_mq_messages()
 				return MOSQ_ERR_SUCCESS;
 			}
 
-			if(time_measure) {
+			if(time_measure_everything) {
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
 				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
 
@@ -220,7 +221,7 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
 
-	if(time_measure && !strcmp(sync_mode, "client")) {
+	if(time_measure_everything && !strcmp(sync_mode, "client")) {
 		if(!regex_match(ed->topic, regex("(aabay/bid/)([0-9]+)"))) { // Gesamte Funktionsaufrufsdauer wird etwas verfaelscht indem hier anderer Regex verwendet wird
 			chrono::system_clock::time_point stop_point = chrono::system_clock::now();
 			chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
@@ -375,22 +376,23 @@ int counter = 0;
 struct Timer
 {
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-	std::chrono::duration<float> duration;
+	std::chrono::duration<double> duration;
 	ofstream time_log;
+	int measure_interval
 
-	Timer()
+	Timer(int interval, char* filename)
 	{
-		if(counter % 100 == 0) {
+		measure_internal = interval;
+		if(counter % measure_internal == 0) {
 			cout << "SEND: " << counter << endl;
-			time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_logs/mq_100.md", ios_base::app);
+			time_log.open(filename, fstream::app | fstream::trunc);
 			start = std::chrono::high_resolution_clock::now();
-			_articles["123"]["bid"] = counter; // TODO: wird hier auf Trigger gewartet?
 		}
 	}
 
 	~Timer()
 	{
-		if(counter % 100 == 0) {
+		if(counter % measure_internal == 0) {
 			end = std::chrono::high_resolution_clock::now();
 			duration = end - start;
 
@@ -407,17 +409,30 @@ struct Timer
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
 	if(!strcmp(sync_mode, "mq")) {
-		counter += 1;
 		//Timer timer; // TODO: Es ist nicht garantiert, dass der aktuelle Trigger auch im selben Tick Aufruf wieder empfangen wird
-		receive_mq_messages(); 
-		return MOSQ_ERR_SUCCESS;
+		if(time_measure_read_out_functions) {
+			counter += 1;
+			Timer timer(10, "/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/mq/read_out_function");
+			receive_mq_messages(); 
+			return MOSQ_ERR_SUCCESS;
+		}
+		else {
+			receive_mq_messages(); 
+			return MOSQ_ERR_SUCCESS;
+		}
 	}
 
 	else if(!strcmp(sync_mode, "global")) {
-		counter += 1;
-		Timer timer;
-		get_and_send_spooled_messages();
-		return MOSQ_ERR_SUCCESS;
+		if(time_measure_read_out_functions) {
+			counter += 1;
+			Timer timer(10, "/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/global/read_out_function");
+			get_and_send_spooled_messages();
+			return MOSQ_ERR_SUCCESS;
+		}
+		else {
+			get_and_send_spooled_messages();
+			return MOSQ_ERR_SUCCESS;
+		}
 	}
 
 	else { // sync_mode = "client"
@@ -453,10 +468,16 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid Sync Mode %s" , sync_mode);
 			}
 		}
-		else if(!strcmp(opts[i].key, "time_measure")) {
+		else if(!strcmp(opts[i].key, "time_measure_everything")) {
 			if(!strcmp(opts[i].value, "true")) {
-				time_measure = true;
+				time_measure_everything = true;
 			}
+		}
+		else if(!strcmp(opts[i].key, "auth_opt_time_measure_read_out_functions")) {
+			if(!strcmp(opts[i].value, "true")) {
+				time_measure_read_out_functions = true;
+			}
+
 		}
 	}
 
