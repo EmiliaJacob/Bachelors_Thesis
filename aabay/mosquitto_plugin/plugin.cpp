@@ -177,16 +177,16 @@ int receive_mq_messages()
 				chrono::duration<double> time_difference = stop_duration - start_duration;
 				double time_difference_in_ms = time_difference.count() * 1000;
 
-				time_log_mq_trigger_to_publish << time_difference_in_ms + "\n";
+				time_log_mq_trigger_to_publish << to_string(time_difference_in_ms) << "\n";
 			}
 
 			if(time_measure_read_out_functions) { 
 				chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
 
 				chrono::duration<double> time_difference = stop - start_function_time;
-				double time_difference_in_ms = time_difference * 1000;
+				double time_difference_in_ms = time_difference.count() * 1000;
 
-				time_log_mq_receive_mq_messages << time_difference_in_ms + "\n";
+				time_log_mq_receive_mq_messages << to_string(time_difference_in_ms) << "\n";
 
 				publish_mqtt_message(topic.data(), payload.data());
 
@@ -432,30 +432,13 @@ struct Timer
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
 	if(!strcmp(sync_mode, "mq")) {
-		//Timer timer; // TODO: Es ist nicht garantiert, dass der aktuelle Trigger auch im selben Tick Aufruf wieder empfangen wird
-		if(time_measure_read_out_functions) {
-			counter += 1;
-			Timer timer(10, "/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/mq/read_out_function");
 			receive_mq_messages(); 
 			return MOSQ_ERR_SUCCESS;
-		}
-		else {
-			receive_mq_messages(); 
-			return MOSQ_ERR_SUCCESS;
-		}
 	}
 
 	else if(!strcmp(sync_mode, "global")) {
-		if(time_measure_read_out_functions) {
-			counter += 1;
-			Timer timer(10, "/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/global/read_out_function");
 			get_and_send_spooled_messages();
 			return MOSQ_ERR_SUCCESS;
-		}
-		else {
-			get_and_send_spooled_messages();
-			return MOSQ_ERR_SUCCESS;
-		}
 	}
 
 	else { // sync_mode = "client"
@@ -508,8 +491,8 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 	}
 
-	time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_logs/mq/trigger_to_publish", fstream::app);
-	time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_logs/mq/receive_mq_messages", fstream::app); 
+	time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/time_logs/mq/trigger_to_publish");
+	time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/time_logs/mq/receive_mq_messages");
 
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
