@@ -34,7 +34,6 @@ using std::string;
 using std::cout;
 using std::vector;
 
-
 char *sync_mode = "client";
 bool time_measure_everything = false;
 bool time_measure_read_out_functions = false;
@@ -104,7 +103,7 @@ int get_and_send_spooled_messages()
 				chrono::duration<double> time_difference_double = stop_duration - start_duration;
 				double time_difference_double_in_ms = time_difference_double.count() * 1000;
 				ofstream time_log;
-				time_log.open("/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/global/everything", fstream::app | fstream::trunc);
+				time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/global/everything", fstream::app);
 				time_log << to_string(time_difference_double_in_ms) + "\n";
 				time_log.close();
 			}
@@ -132,6 +131,8 @@ int get_and_send_spooled_messages()
 
 int receive_mq_messages() 
 {
+	chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now(); // relevant, wenn funktionsdauer gemessen werden soll
+
 	if(mq_descriptor == -1) {
 		int errsv = errno;
 		mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq_descriptor: %s %s" , strerrorname_np(errsv), strerror(errsv));
@@ -152,7 +153,7 @@ int receive_mq_messages()
 		if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
-		else {
+		else { // Mindestens eine Nachricht wurde gequeuet
 			if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)(([.][0-9]+)?)"))) {
 				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq message format" );
 				return MOSQ_ERR_SUCCESS;
@@ -172,9 +173,20 @@ int receive_mq_messages()
 				chrono::duration<double> time_difference_double = stop_duration - start_duration;
 				double time_difference_double_in_ms = time_difference_double.count() * 1000;
 				ofstream time_log;
-				time_log.open("/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/mq/everything", fstream::app | fstream::trunc);
+				time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/mq/everything", fstream::app);
 				time_log << to_string(time_difference_double_in_ms) + "\n";
 				time_log.close();
+				
+				if(time_measure_read_out_functions) { 
+					chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
+					chrono::duration<double> difference = stop - start;
+					ofstream time_log;
+					time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/mq/read_out_function_time_measure", fstream::app); // TODO: do this only once and find a way to truncate these
+					time_log << to_string(difference.count()*1000) + "\n";
+					time_log.close();
+					return MOSQ_ERR_SUCCESS; // makes sure to measure only one message
+				}
+					
 			}
 			else {
 				vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
@@ -182,7 +194,18 @@ int receive_mq_messages()
 				vector<char> payload(delimiter_element + 1, buffer.end());
 				
 				publish_mqtt_message(topic.data(), payload.data());
-		}
+
+				if(time_measure_read_out_functions) { 
+					chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
+					chrono::duration<double> difference = stop - start;
+					cout << difference.count() << endl;
+					ofstream time_log;
+					time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/mq/read_out_function_normal", fstream::app); // TODO: do this only once and find a way to truncate these
+					time_log << to_string(difference.count()*1000) + "\n";
+					time_log.close();
+					return MOSQ_ERR_SUCCESS; // makes sure to measure only one message
+				}
+			}
 		}
 	}
 
@@ -242,7 +265,7 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 			double time_difference_double_in_ms = time_difference_double.count() * 1000;
 
 			ofstream time_log;
-			time_log.open("/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/client/everything", fstream::app | fstream::trunc);
+			time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/client/everything", fstream::app);
 			time_log << to_string(time_difference_double_in_ms) + "\n";
 			time_log.close();
 		}
@@ -392,20 +415,20 @@ struct Timer
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
 	std::chrono::duration<double> duration;
 	ofstream time_log;
-	int measure_interval
+	int measure_interval;
 
 	Timer(int interval, char* filename)
 	{
-		measure_internal = interval;
-		if(counter % measure_internal == 0) {
-			time_log.open(filename, fstream::app); // TODO: add a way to trunc
+		measure_interval = interval;
+		if(counter % measure_interval == 0) {
+			time_log.open(filename, ios::app); // TODO: add a way to trunc
 			start = std::chrono::high_resolution_clock::now();
 		}
 	}
 
 	~Timer()
 	{
-		if(counter % measure_internal == 0) {
+		if(counter % measure_interval == 0) {
 			end = std::chrono::high_resolution_clock::now();
 			duration = end - start;
 
@@ -423,7 +446,7 @@ static int callback_tick(int event, void *event_data, void *userdata)
 		//Timer timer; // TODO: Es ist nicht garantiert, dass der aktuelle Trigger auch im selben Tick Aufruf wieder empfangen wird
 		if(time_measure_read_out_functions) {
 			counter += 1;
-			Timer timer(10, "/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/mq/read_out_function");
+			Timer timer(10, "/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/mq/read_out_function");
 			receive_mq_messages(); 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -436,7 +459,7 @@ static int callback_tick(int event, void *event_data, void *userdata)
 	else if(!strcmp(sync_mode, "global")) {
 		if(time_measure_read_out_functions) {
 			counter += 1;
-			Timer timer(10, "/Users/v/ydbay/aabay/mosquitto_plugin/time_measure/global/read_out_function");
+			Timer timer(10, "/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/global/read_out_function");
 			get_and_send_spooled_messages();
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -484,7 +507,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 				time_measure_everything = true;
 			}
 		}
-		else if(!strcmp(opts[i].key, "auth_opt_time_measure_read_out_functions")) {
+		else if(!strcmp(opts[i].key, "time_measure_read_out_functions")) {
 			if(!strcmp(opts[i].value, "true")) {
 				time_measure_read_out_functions = true;
 			}
