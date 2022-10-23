@@ -139,19 +139,33 @@ int receive_mq_messages()
 			return MOSQ_ERR_SUCCESS;
 		}
 		else {
-
-			if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)"))) {
+			if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)(([.][0-9]+)?)"))) {
 				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq message format" );
 				return MOSQ_ERR_SUCCESS;
 			}
 
-			vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
-			vector<char> topic(buffer.begin(), delimiter_element );
-			vector<char> payload(delimiter_element + 1, buffer.end());
-			
-			cout << "RECEIVE: " << payload.data() << endl;
+			if(time_measure) {
+				chrono::high_resolution_clock::time_point stop_point = chrono::high_resolution_clock::now();
+				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
 
-			publish_mqtt_message(topic.data(), payload.data());
+				vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
+				vector<char> topic(buffer.begin(), delimiter_element );
+				vector<char> payload(delimiter_element + 1, buffer.end());
+
+				double start_duration_rep = stod(payload.data(), NULL);
+				chrono::duration<double> start_duration(start_duration_rep);
+
+				chrono::duration<float> time_difference = stop_duration - start_duration;
+				cout << "TIME DIFF " << time_difference.count() << endl;
+
+			}
+			else {
+				vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
+				vector<char> topic(buffer.begin(), delimiter_element );
+				vector<char> payload(delimiter_element + 1, buffer.end());
+				
+				publish_mqtt_message(topic.data(), payload.data());
+		}
 		}
 	}
 
@@ -199,7 +213,7 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
 
-	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) {
+	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { // TODO: Wird ACL davor ausgefuehrt
 		mosquitto_broker_publish_copy( // TODO: do you also have to this in ACL check?
 			NULL,
 			ed->topic,
@@ -372,10 +386,9 @@ struct Timer
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-
 	if(!strcmp(sync_mode, "mq")) {
 		counter += 1;
-		Timer timer; // TODO: Es ist nicht garantiert, dass der aktuelle Trigger auch im selben Tick Aufruf wieder empfangen wird
+		//Timer timer; // TODO: Es ist nicht garantiert, dass der aktuelle Trigger auch im selben Tick Aufruf wieder empfangen wird
 		receive_mq_messages(); 
 		return MOSQ_ERR_SUCCESS;
 	}
