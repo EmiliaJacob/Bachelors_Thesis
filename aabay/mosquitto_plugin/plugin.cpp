@@ -47,6 +47,7 @@ ofstream time_log_mq_trigger_to_publish;
 ofstream time_log_mq_receive_mq_messages;
 ofstream time_log_global_trigger_to_publish;
 ofstream time_log_global_get_and_send_spooled_messages;
+ofstream time_log_client_trigger_to_publish;
 
 
 
@@ -239,8 +240,8 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
 
-	if(time_measurement_trigger_to_publish && !strcmp(sync_mode, "client")) {
-		if(!regex_match(ed->topic, regex("(aabay/bid/)([0-9]+)"))) { // Gesamte Funktionsaufrufsdauer wird etwas verfaelscht indem hier anderer Regex verwendet wird
+	if(time_measurement_trigger_to_publish && !strcmp(sync_mode, "client")) { // TODO: Wird ACL davor ausgefuehrt ? Funktionstimecheck inkl ACL machen? Wann wird ACL - Callback aufgerufen?
+		if(!regex_match(ed->topic, regex("(aabay/bid/)([0-9]+)"))) { 
 			chrono::system_clock::time_point stop_point = chrono::system_clock::now();
 			chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
 
@@ -250,23 +251,27 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 			chrono::duration<double> time_difference_double = stop_duration - start_duration;
 			double time_difference_double_in_ms = time_difference_double.count() * 1000;
 
-			ofstream time_log;
-			time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/client/everything", fstream::app);
-			time_log << to_string(time_difference_double_in_ms) + "\n";
-			time_log.close();
+			time_log_client_trigger_to_publish << to_string(time_difference_double_in_ms) + "\n";
 		}
 	}
 
-	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { // TODO: Wird ACL davor ausgefuehrt TODO: Wird hier je andere Nachricht als client-publish empfangen?
-		mosquitto_broker_publish_copy( // TODO: do you also have to this in ACL check?
-			NULL,
-			ed->topic,
-			strlen((char*)ed->payload), 
-			ed->payload,
-			QOS,
-			RETAIN,
-			PROPERTIES
-		);
+	if(!strcmp(sync_mode,"client") && !regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { // Hier wird sync Nachricht von Client Implementation ausgelesen
+
+		if(time_measurement_trigger_to_publish) {
+			chrono::system_clock::time_point stop_point = chrono::system_clock::now();
+			chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
+
+			double start_duration_rep = stod(((char*)ed->payload), NULL);
+			chrono::duration<double> start_duration(start_duration_rep);
+
+			chrono::duration<double> time_difference_double = stop_duration - start_duration;
+			double time_difference_double_in_ms = time_difference_double.count() * 1000;
+
+			time_log_client_trigger_to_publish << to_string(time_difference_double_in_ms) + "\n";
+		}
+		
+	 	publish_mqtt_message(ed->topic, (char*)ed->payload);
+
 		return MOSQ_ERR_SUCCESS;
 	}
 
@@ -460,6 +465,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/time_measurements/mq/receive_mq_messages");
 	time_log_global_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/global/trigger_to_publish");
 	time_log_global_get_and_send_spooled_messages.open("/home/emi/ydbay/aabay/time_measurements/global/get_and_send_spooled_messages");
+	time_log_client_trigger_to_publish.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/client/everything", fstream::app);
 
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
@@ -477,6 +483,7 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 	time_log_mq_receive_mq_messages.close();
 	time_log_global_trigger_to_publish.close();
 	time_log_global_get_and_send_spooled_messages.close();
+	time_log_client_trigger_to_publish.close();
 
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
