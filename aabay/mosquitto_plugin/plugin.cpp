@@ -45,6 +45,8 @@ c_ydb_global dummy("dummy");
 
 ofstream time_log_mq_trigger_to_publish;
 ofstream time_log_mq_receive_mq_messages;
+ofstream time_log_global_trigger_to_publish;
+ofstream time_log_global_get_and_send_spooled_messages;
 
 
 
@@ -59,13 +61,9 @@ bool publish_mqtt_message(string topic, string payload);
 
 static mosquitto_plugin_id_t * mosq_pid = NULL;
 
-static const int QOS_SPOOL = 0;
-static const bool RETAIN_SPOOL = false;
-static mosquitto_property *PROPERTIES_SPOOL = NULL;
-
-static const int QOS_RESPONSE = 0;
-static const bool RETAIN_RESPONSE = false;
-static mosquitto_property *PROPERTIES_RESPONSE = NULL;
+const int QOS = 0;
+const bool RETAIN = false;
+mosquitto_property *PROPERTIES = NULL;
 
 int get_and_send_spooled_messages();
 
@@ -73,6 +71,8 @@ int receive_mq_messages();
 
 int get_and_send_spooled_messages()
 {
+	chrono::high_resolution_clock::time_point start_function_time = chrono::high_resolution_clock::now(); 
+
 	if(!_mqttspool.hasChilds())
 		return MOSQ_ERR_SUCCESS;
 
@@ -94,38 +94,36 @@ int get_and_send_spooled_messages()
 	_mqttspool.lock_dec();
 
 	string iterator_dummy = "";
+	bool first_iteration = true;
+
 
 	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") {
-			if(time_measurement_trigger_to_publish) {
+
+			if(time_measurement_trigger_to_publish) { 
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
 				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
 
 				double start_duration_rep = stod(((string)dummy[iterator_dummy]["message"]), NULL);
 				chrono::duration<double> start_duration(start_duration_rep);
 
-				chrono::duration<double> time_difference_double = stop_duration - start_duration;
-				double time_difference_double_in_ms = time_difference_double.count() * 1000;
-				ofstream time_log;
-				time_log.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/global/everything", fstream::app);
-				time_log << to_string(time_difference_double_in_ms) + "\n";
-				time_log.close();
-			}
-			else {
-				int result = mosquitto_broker_publish_copy( // TODO: replace with function
-					NULL,
-					((string)dummy[iterator_dummy]["topic"]).c_str(),
-					strlen(((string)dummy[iterator_dummy]["message"]).c_str()), 
-					((string)dummy[iterator_dummy]["message"]).c_str(),
-					QOS_SPOOL,
-					RETAIN_SPOOL,
-					PROPERTIES_SPOOL
-				);
+				chrono::duration<double> time_difference = stop_duration - start_duration;
+				double time_difference_in_ms = time_difference.count() * 1000;
 
-				if (result != MOSQ_ERR_SUCCESS) {
-					dummy.kill();
-					return result;
-				}
+				time_log_global_trigger_to_publish << to_string(time_difference_in_ms) + "\n";
 			}
+
+			if(time_measurement_read_out_function && first_iteration){ 
+				chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
+
+				chrono::duration<double> time_difference = stop - start_function_time;
+				double time_difference_in_ms = time_difference.count() * 1000;
+
+				time_log_global_get_and_send_spooled_messages << to_string(time_difference_in_ms) << "\n";
+			}
+
+			publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["message"]); // TODO: vllt ueberall den Begriff payload oder message verwenden
+
+			first_iteration = false;
 	}
 	
 	dummy.kill();
@@ -216,9 +214,9 @@ bool publish_mqtt_message(string topic, string payload) {
 		topic.c_str(),
 		strlen(payload.c_str()), // TODO: Maybe switch to CPP wrapper of mosquitto
 		payload.c_str(),
-		QOS_RESPONSE,
-		RETAIN_RESPONSE,
-		PROPERTIES_RESPONSE 
+		QOS,
+		RETAIN,
+		PROPERTIES 
 	);
 	return (result == MOSQ_ERR_SUCCESS);
 }
@@ -230,9 +228,9 @@ bool publish_mqtt_message(string topic, Json::Value &payload) {
 		topic.c_str(),
 		strlen(serialized_payload.c_str()), 
 		serialized_payload.c_str(),
-		QOS_RESPONSE,
-		RETAIN_RESPONSE,
-		PROPERTIES_RESPONSE
+		QOS,
+		RETAIN,
+		PROPERTIES
 	);
 	return (result == MOSQ_ERR_SUCCESS);
 }
@@ -265,9 +263,9 @@ static int callback_message(int event, void *event_data, void *userdata) // TODO
 			ed->topic,
 			strlen((char*)ed->payload), 
 			ed->payload,
-			QOS_RESPONSE,
-			RETAIN_RESPONSE,
-			PROPERTIES_RESPONSE
+			QOS,
+			RETAIN,
+			PROPERTIES
 		);
 		return MOSQ_ERR_SUCCESS;
 	}
@@ -460,6 +458,8 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 
 	time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/mq/trigger_to_publish");
 	time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/time_measurements/mq/receive_mq_messages");
+	time_log_global_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/global/trigger_to_publish");
+	time_log_global_get_and_send_spooled_messages.open("/home/emi/ydbay/aabay/time_measurements/global/get_and_send_spooled_messages");
 
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
@@ -475,6 +475,8 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 
 	time_log_mq_trigger_to_publish.close();
 	time_log_mq_receive_mq_messages.close();
+	time_log_global_trigger_to_publish.close();
+	time_log_global_get_and_send_spooled_messages.close();
 
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
