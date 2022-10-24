@@ -34,7 +34,7 @@ using std::string;
 using std::cout;
 using std::vector;
 
-char *sync_mode = "client";
+string sync_mode = "client";
 bool time_measurement_trigger_to_publish = false;
 bool time_measurement_read_out_function = false;
 mqd_t mq_descriptor = -1;
@@ -242,7 +242,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	//TODO: Wird ACL davor ausgefuehrt ? Funktionstimecheck inkl ACL machen? Wann wird ACL - Callback aufgerufen?
 	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { // Hier wird sync Nachricht von Client Implementation ausgelesen
-		if(!strcmp(sync_mode,"client")) {
+		if(sync_mode == "client") {
 
 			if(time_measurement_trigger_to_publish) {
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
@@ -251,10 +251,10 @@ static int callback_message(int event, void *event_data, void *userdata)
 				double start_duration_rep = stod(((char*)ed->payload), NULL);
 				chrono::duration<double> start_duration(start_duration_rep);
 
-				chrono::duration<double> time_difference_double = stop_duration - start_duration;
-				double time_difference_double_in_ms = time_difference_double.count() * 1000;
+				chrono::duration<double> time_difference = stop_duration - start_duration;
+				double time_difference_in_ms = time_difference.count() * 1000;
 
-				time_log_client_trigger_to_publish << to_string(time_difference_double_in_ms) + "\n";
+				time_log_client_trigger_to_publish << to_string(time_difference_in_ms) + "\n";
 			}
 			
 			publish_mqtt_message(ed->topic, (char*)ed->payload);
@@ -389,12 +389,12 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
-	if(!strcmp(sync_mode, "mq")) {
+	if(sync_mode == "mq") {
 			receive_mq_messages(); 
 			return MOSQ_ERR_SUCCESS;
 	}
 
-	else if(!strcmp(sync_mode, "global")) {
+	else if(sync_mode == "global") {
 			get_and_send_spooled_messages();
 			return MOSQ_ERR_SUCCESS;
 	}
@@ -426,7 +426,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		if(!strcmp(opts[i].key, "sync_mode")) {
 			if(!strcmp(opts[i].value,"client") || !strcmp(opts[i].value,"mq") || !strcmp(opts[i].value,"global")) {
 				mosquitto_log_printf(MOSQ_LOG_INFO, "Selected Sync Mode: %s", opts[i].value);
-				sync_mode = opts[i].value;
+				sync_mode = string(opts[i].value);
 			}
 			else {
 				mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid Sync Mode %s" , sync_mode);
@@ -445,15 +445,32 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		}
 	}
 
-	if(!strcmp(sync_mode, "mq")){
+	if(sync_mode == "mq") {
 		mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
 	}
 
-	time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/mq/trigger_to_publish");
-	time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/time_measurements/mq/receive_mq_messages");
-	time_log_global_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/global/trigger_to_publish");
-	time_log_global_get_and_send_spooled_messages.open("/home/emi/ydbay/aabay/time_measurements/global/get_and_send_spooled_messages");
-	time_log_client_trigger_to_publish.open("/home/emi/ydbay/aabay/mosquitto_plugin/time_measure/client/everything", fstream::app);
+	if(time_measurement_trigger_to_publish){
+		if(sync_mode == "mq") {
+			time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/mq/trigger_to_publish"); 
+		}
+		if(sync_mode == "global"){
+			time_log_global_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/global/trigger_to_publish");
+		}
+		if(sync_mode == "client"){
+			time_log_client_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/client/trigger_to_publish");
+		}
+	}
+
+	if(time_measurement_read_out_function) {
+		if(sync_mode == "mq") {
+			time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/time_measurements/mq/receive_mq_messages");
+		}
+		if(sync_mode == "global"){
+			time_log_global_get_and_send_spooled_messages.open("/home/emi/ydbay/aabay/time_measurements/global/get_and_send_spooled_messages");
+		}
+		if(sync_mode == "client"){
+		}
+	}
 
 	return mosquitto_callback_register(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL, *user_data)
 		|| mosquitto_callback_register(mosq_pid, MOSQ_EVT_MESSAGE, callback_message, NULL, *user_data);
@@ -461,17 +478,34 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 
 int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int opt_count)
 {
-	if(!strcmp(sync_mode, "mq")){
+	if(sync_mode == "mq") {
 		if(mq_descriptor != -1) {
 			mq_close(mq_descriptor);
 		}
 	}
 
-	time_log_mq_trigger_to_publish.close();
-	time_log_mq_receive_mq_messages.close();
-	time_log_global_trigger_to_publish.close();
-	time_log_global_get_and_send_spooled_messages.close();
-	time_log_client_trigger_to_publish.close();
+	if(time_measurement_trigger_to_publish){
+		if(sync_mode == "mq"){
+			time_log_mq_trigger_to_publish.close();
+		}
+		if(sync_mode == "global"){
+			time_log_global_trigger_to_publish.close();
+		}
+		if(sync_mode == "client"){
+			time_log_client_trigger_to_publish.close();
+		}
+	}
+
+	if(time_measurement_read_out_function) {
+		if(sync_mode == "mq"){
+			time_log_mq_receive_mq_messages.close();
+		}
+		if(sync_mode == "global"){
+			time_log_global_get_and_send_spooled_messages.close();
+		}
+		if(sync_mode == "client"){
+		}
+	}
 
 	return mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_BASIC_AUTH, callback_message, NULL)
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
