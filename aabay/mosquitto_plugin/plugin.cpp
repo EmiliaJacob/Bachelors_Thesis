@@ -97,8 +97,13 @@ int get_and_send_spooled_messages()
 	string iterator_dummy = "";
 	bool first_iteration = true;
 
+	chrono::high_resolution_clock::time_point start_point_get = chrono::high_resolution_clock::now();
 
 	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") {
+
+		chrono::high_resolution_clock::time_point stop_point_get = chrono::high_resolution_clock::now();
+		chrono::duration<double> time_difference_get = stop_point_get - start_point_get;
+		double time_difference_get_in_ms = time_difference_get.count() * 1000;
 
 			if(time_measurement_trigger_to_publish) { 
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
@@ -118,8 +123,9 @@ int get_and_send_spooled_messages()
 
 				chrono::duration<double> time_difference = stop - start_function_time;
 				double time_difference_in_ms = time_difference.count() * 1000;
+				double time_difference_without_get = time_difference_in_ms - time_difference_get_in_ms;
 
-				time_log_global_get_and_send_spooled_messages << to_string(time_difference_in_ms) << "\n";
+				time_log_global_get_and_send_spooled_messages << to_string(time_difference_without_get) << "\n";
 			}
 
 			publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["message"]); // TODO: vllt ueberall den Begriff payload oder message verwenden
@@ -152,9 +158,17 @@ int receive_mq_messages()
 	vector<char> buffer(attr.mq_msgsize);
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
+		
+		chrono::high_resolution_clock::time_point start_point_receive = chrono::high_resolution_clock::now();
+
 		if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
+
+		chrono::high_resolution_clock::time_point stop_point_receive = chrono::high_resolution_clock::now();
+
+		chrono::duration<double> time_difference_receive = stop_point_receive - start_point_receive;
+		double time_difference_receive_in_ms = time_difference_receive.count() * 1000;
 
 		if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)(([.][0-9]+)?)"))) {
 			mosquitto_log_printf(MOSQ_LOG_INFO, "Undesired mq message format" );
@@ -179,17 +193,16 @@ int receive_mq_messages()
 				time_log_mq_trigger_to_publish << to_string(time_difference_in_ms) << "\n";
 			}
 
-			if(time_measurement_read_out_function) { 
+			if(time_measurement_read_out_function && i == 0) { 
 				chrono::high_resolution_clock::time_point stop = chrono::high_resolution_clock::now();
 
 				chrono::duration<double> time_difference = stop - start_function_time;
 				double time_difference_in_ms = time_difference.count() * 1000;
+				double time_difference_without_receive = time_difference_in_ms - time_difference_receive_in_ms; 
 
-				time_log_mq_receive_mq_messages << to_string(time_difference_in_ms) << "\n";
+				time_log_mq_receive_mq_messages << to_string(time_difference_without_receive) << "\n";
 
 				publish_mqtt_message(topic.data(), payload.data());
-
-				return MOSQ_ERR_SUCCESS; 
 			}
 
 			publish_mqtt_message(topic.data(), payload.data());
@@ -246,7 +259,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 			if(time_measurement_trigger_to_publish) {
 				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
-				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
+				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); 
 
 				double start_duration_rep = stod(((char*)ed->payload), NULL);
 				chrono::duration<double> start_duration(start_duration_rep);

@@ -11,7 +11,7 @@
 
 void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
 {
-    int mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL);
+    int mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, NULL);
     
     if(mq_descriptor == -1) {
         int latest_errno = errno;
@@ -34,6 +34,8 @@ void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload)
     }
 
     free(mq_message);
+
+    mq_close(mq_descriptor);
 
     return;
 }
