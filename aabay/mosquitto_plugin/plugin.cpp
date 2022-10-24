@@ -241,22 +241,24 @@ static int callback_message(int event, void *event_data, void *userdata)
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
 
 	//TODO: Wird ACL davor ausgefuehrt ? Funktionstimecheck inkl ACL machen? Wann wird ACL - Callback aufgerufen?
-	if(!strcmp(sync_mode,"client") && !regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { // Hier wird sync Nachricht von Client Implementation ausgelesen
+	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { // Hier wird sync Nachricht von Client Implementation ausgelesen
+		if(!strcmp(sync_mode,"client")) {
 
-		if(time_measurement_trigger_to_publish) {
-			chrono::system_clock::time_point stop_point = chrono::system_clock::now();
-			chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
+			if(time_measurement_trigger_to_publish) {
+				chrono::system_clock::time_point stop_point = chrono::system_clock::now();
+				chrono::duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
 
-			double start_duration_rep = stod(((char*)ed->payload), NULL);
-			chrono::duration<double> start_duration(start_duration_rep);
+				double start_duration_rep = stod(((char*)ed->payload), NULL);
+				chrono::duration<double> start_duration(start_duration_rep);
 
-			chrono::duration<double> time_difference_double = stop_duration - start_duration;
-			double time_difference_double_in_ms = time_difference_double.count() * 1000;
+				chrono::duration<double> time_difference_double = stop_duration - start_duration;
+				double time_difference_double_in_ms = time_difference_double.count() * 1000;
 
-			time_log_client_trigger_to_publish << to_string(time_difference_double_in_ms) + "\n";
+				time_log_client_trigger_to_publish << to_string(time_difference_double_in_ms) + "\n";
+			}
+			
+			publish_mqtt_message(ed->topic, (char*)ed->payload);
 		}
-		
-	 	publish_mqtt_message(ed->topic, (char*)ed->payload);
 
 		return MOSQ_ERR_SUCCESS;
 	}
