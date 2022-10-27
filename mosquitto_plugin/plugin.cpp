@@ -51,7 +51,7 @@ int receive_and_send_mq_messages();
 
 bool literal_to_json(Json::Value *json, char *literal);
 
-bool publish_mqtt_message(string topic, Json::Value *payload); 
+bool publish_mqtt_message(string topic, Json::Value &payload); 
 
 bool publish_mqtt_message(string topic, string payload);
 
