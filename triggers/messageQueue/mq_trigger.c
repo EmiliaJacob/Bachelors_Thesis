@@ -14,7 +14,7 @@ void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload)
     static int mq_descriptor = -1;
     
     if(mq_descriptor == -1) {
-        mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, NULL); // TODO:: wird ende der fkt als prozessende gesehen. nachschauen wie das bei shlibs ist
+        mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, NULL); 
 
         if(mq_descriptor == -1) {
             int latest_errno = errno;

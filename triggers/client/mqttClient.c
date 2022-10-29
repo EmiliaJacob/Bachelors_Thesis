@@ -9,14 +9,11 @@
 void publishMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) {
 
   static int initResult = -1;
-  static int connResult = -1; // passiert init nur einmal? wahrscheinlich
+  static int connResult = -1; 
 
   static struct mosquitto *client = NULL;
-  // printf("JJJ %d\n", connResult);
 
   if(connResult != MOSQ_ERR_SUCCESS) {
-    // printf("HELLO");
-
     if((initResult = mosquitto_lib_init()) != MOSQ_ERR_SUCCESS) {
       return;
     }
@@ -30,10 +27,6 @@ void publishMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) {
     mosquitto_loop_start(client);
   }
 
-  if(connResult != MOSQ_ERR_SUCCESS) {
-    return;
-  }
-  
   int pub_result = mosquitto_publish (
     client,
     NULL,
@@ -47,14 +40,4 @@ void publishMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) {
   if(pub_result != MOSQ_ERR_SUCCESS) {
     return;
   }
-  
-  // clean up
-  //mosquitto_disconnect(client); TODO: Evtl noetig?
-  //mosquitto_destroy(client);
 }
-
-// int main() {
-//   createClientAndPublish(1, "hello", "world");
-//   createClientAndPublish(2, "hello", "world");
-//   return 0;
-// }

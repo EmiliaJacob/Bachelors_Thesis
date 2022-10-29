@@ -109,22 +109,22 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 
 	if(time_measurement_trigger_to_publish){
 		if(sync_mode == "mq") {
-			time_log_mq_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/mq/trigger_to_publish"); 
+			time_log_mq_trigger_to_publish.open("/home/emi/ydbay/time_measurements/mq/trigger_to_publish"); 
 		}
 		if(sync_mode == "global"){
-			time_log_global_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/global/trigger_to_publish");
+			time_log_global_trigger_to_publish.open("/home/emi/ydbay/time_measurements/global/trigger_to_publish");
 		}
 		if(sync_mode == "client"){
-			time_log_client_trigger_to_publish.open("/home/emi/ydbay/aabay/time_measurements/client/trigger_to_publish");
+			time_log_client_trigger_to_publish.open("/home/emi/ydbay/time_measurements/client/trigger_to_publish");
 		}
 	}
 
 	if(time_measurement_read_out_function) {
 		if(sync_mode == "mq") {
-			time_log_mq_receive_mq_messages.open("/home/emi/ydbay/aabay/time_measurements/mq/receive_and_send_mq_messages");
+			time_log_mq_receive_mq_messages.open("/home/emi/ydbay/time_measurements/mq/receive_and_send_mq_messages");
 		}
 		if(sync_mode == "global"){
-			time_log_global_get_and_send_spooled_messages.open("/home/emi/ydbay/aabay/time_measurements/global/get_and_send_spooled_messages");
+			time_log_global_get_and_send_spooled_messages.open("/home/emi/ydbay/time_measurements/global/get_and_send_spooled_messages");
 		}
 		if(sync_mode == "client"){
 		}
@@ -169,7 +169,7 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
 }
 
-
+int c = 0;
 static int callback_message(int event, void *event_data, void *userdata) 
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
@@ -179,6 +179,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(sync_mode == "client") {
 
 			if(time_measurement_trigger_to_publish) {
+				cout << "JFLDSJFLKJDFKL" << endl;
 				system_clock::time_point stop_point = system_clock::now();
 				duration<double> stop_duration = stop_point.time_since_epoch(); 
 
