@@ -11,12 +11,16 @@
 
 void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
 {
-    int mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, NULL);
+    static int mq_descriptor = -1;
     
     if(mq_descriptor == -1) {
-        int latest_errno = errno;
-        printf("%s %s\n", strerrorname_np(latest_errno), strerror(latest_errno));
-        return;
+        mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, NULL); // TODO:: wird ende der fkt als prozessende gesehen. nachschauen wie das bei shlibs ist
+
+        if(mq_descriptor == -1) {
+            int latest_errno = errno;
+            printf("%s %s\n", strerrorname_np(latest_errno), strerror(latest_errno));
+            return;
+        }
     }
 
     char *mq_message = (char*)malloc(strlen(topic) + strlen(DELIMITER) +strlen(payload) + 1);
@@ -35,7 +39,7 @@ void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload)
 
     free(mq_message);
 
-    mq_close(mq_descriptor);
+    // mq_close(mq_descriptor); Man 3:  All open message queues are automatically closed on process termination
 
     return;
 }
