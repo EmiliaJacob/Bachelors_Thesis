@@ -407,6 +407,7 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
+int counter = 0;
 int receive_and_send_mq_messages() 
 {
 	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
@@ -434,6 +435,9 @@ int receive_and_send_mq_messages()
 		if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
+
+		counter += 1;
+		cout << "C " << counter << endl;
 
 		high_resolution_clock::time_point stop_point_receive = high_resolution_clock::now();
 

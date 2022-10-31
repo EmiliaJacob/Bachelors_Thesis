@@ -3,9 +3,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+
+#include <time.h>
 #include <mqueue.h>
 
-#define MQ_NAME "/mqttspool"
+#include <unistd.h>
+
+#include <signal.h>
+
+#define MQ_NAME "/mqttspool" 
 #define DELIMITER " "
 #define MQ_MSG_PRIO 1
 
@@ -17,8 +23,7 @@ void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload)
         mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, NULL); 
 
         if(mq_descriptor == -1) {
-            int latest_errno = errno;
-            printf("%s %s\n", strerrorname_np(latest_errno), strerror(latest_errno));
+            perror("mq_open failed");
             return;
         }
     }
@@ -29,12 +34,23 @@ void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload)
     strcat(mq_message, DELIMITER);
     strcat(mq_message, payload);
 
-    //TODO: check if message size is bigger then setting maybe set the mq settings at one place in plugin setup and use a constant here? -> less independent tho
     int mq_sending_result = mq_send(mq_descriptor, mq_message, strlen(mq_message), MQ_MSG_PRIO);
 
     if(mq_sending_result == -1) {
         int latest_errno = errno;
-        printf("%s %s\n", strerrorname_np(latest_errno), strerror(latest_errno));
+        perror("mq_send failed");
+
+        while(latest_errno == EINTR) { // mq_send wurde von signal unterbrochen 
+            printf("Trying mq_send again\n");
+
+            mq_sending_result = mq_send(mq_descriptor, mq_message, strlen(mq_message), MQ_MSG_PRIO);
+
+            if(mq_sending_result == -1)
+                latest_errno = errno;
+            else {
+              break;
+            }
+        }
     }
 
     free(mq_message);

@@ -2,11 +2,15 @@
 #include <chrono>
 #include <string>
 #include <ydb-global.h>
+#include <unistd.h>
+
+#include <unistd.h>
 
 int main(int argc, char** argv)
 {
-  if(argc > 3) {
-    std::cout << "ERROR: Too many arguments" << std::endl;
+
+  if(argc != 3) {
+    std::cout << "ERROR: Wrong amount of args" << std::endl;
     return -1;
   }
 
@@ -20,8 +24,9 @@ int main(int argc, char** argv)
   system_clock::time_point start_point;
   duration<double> start_duration;
 
+
   for (int i=0; i<number_of_set_calls; i++)
-  {
+  { 
     start_point = system_clock::now();
     start_duration = start_point.time_since_epoch();
 
