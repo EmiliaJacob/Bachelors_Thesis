@@ -15,10 +15,14 @@
 #define DELIMITER " "
 #define MQ_MSG_PRIO 1
 
-void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
+void addMqttMessage(int count, ydb_int_t nesting_level, ydb_char_t *topic, ydb_char_t *payload) 
 {
+    static int counter = 1;
+    counter += 1;
+    printf("counter: %d nesting level: %d\n",counter, nesting_level);
+
     static int mq_descriptor = -1;
-    
+
     if(mq_descriptor == -1) {
         mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, NULL); 
 

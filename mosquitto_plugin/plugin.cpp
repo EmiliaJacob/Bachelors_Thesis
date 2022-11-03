@@ -436,9 +436,6 @@ int receive_and_send_mq_messages()
 			return MOSQ_ERR_SUCCESS;
 		}
 
-		counter += 1;
-		cout << "C " << counter << endl;
-
 		high_resolution_clock::time_point stop_point_receive = high_resolution_clock::now();
 
 		duration<double> time_difference_receive = stop_point_receive - start_point_receive;
