@@ -422,7 +422,6 @@ int receive_and_publish_mq_messages()
 	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
 
 	vector<char> buffer(mqttspool_attributes.mq_msgsize);
-	cout << mqttspool_attributes.mq_msgsize << endl;
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
 		

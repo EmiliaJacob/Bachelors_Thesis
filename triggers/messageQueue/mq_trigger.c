@@ -17,7 +17,7 @@
 
 struct mq_attr mqttspool_attributes = {
     .mq_maxmsg = 100,
-    .mq_maxmsg = 8192
+    .mq_msgsize = 8192 // default groesse in Ubuntu 20
 };
 
 void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
@@ -59,8 +59,6 @@ void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload)
     }
 
     free(mq_message);
-
-    // mq_close(mq_descriptor); Man 3:  All open message queues are automatically closed on process termination
 
     return;
 }
