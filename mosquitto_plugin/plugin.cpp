@@ -36,6 +36,8 @@ c_ydb_global _mqttspool("^ms");
 c_ydb_global dummy("dummy");
 
 mqd_t mq_descriptor = -1;
+struct mq_attr mq_attributes;
+
 int max_mq_receive_per_tick = 10;
 
 Json::StreamWriterBuilder builder;
@@ -47,7 +49,7 @@ static int callback_tick(int event, void *event_data, void *userdata);
 
 int get_and_send_spooled_messages();
 
-int receive_and_send_mq_messages();
+int receive_and_publish_mq_messages();
 
 bool literal_to_json(Json::Value *json, char *literal);
 
@@ -105,6 +107,15 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 
 	if(sync_mode == "mq") {
 		mq_descriptor = mq_open("/mqttspool", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
+
+		if(mq_descriptor == -1)
+			return MOSQ_ERR_UNKNOWN;
+
+		if(mq_getattr(mq_descriptor, &mq_attributes) == -1) {
+			int latest_errno = errno;
+			mosquitto_log_printf(MOSQ_LOG_INFO, "Couldn't get mq Attributes: %s %s", strerrorname_np(latest_errno), strerror(latest_errno));
+			return MOSQ_ERR_UNKNOWN;
+		}
 	}
 
 	if(time_measurement_trigger_to_publish){
@@ -121,7 +132,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 
 	if(time_measurement_read_out_function) {
 		if(sync_mode == "mq") {
-			time_log_mq_receive_mq_messages.open("/home/emi/ydbay/time_measurements/mq/receive_and_send_mq_messages");
+			time_log_mq_receive_mq_messages.open("/home/emi/ydbay/time_measurements/mq/receive_and_publish_mq_messages");
 		}
 		if(sync_mode == "global"){
 			time_log_global_get_and_send_spooled_messages.open("/home/emi/ydbay/time_measurements/global/get_and_send_spooled_messages");
@@ -179,7 +190,6 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(sync_mode == "client") {
 
 			if(time_measurement_trigger_to_publish) {
-				cout << "JFLDSJFLKJDFKL" << endl;
 				system_clock::time_point stop_point = system_clock::now();
 				duration<double> stop_duration = stop_point.time_since_epoch(); 
 
@@ -325,7 +335,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 static int callback_tick(int event, void *event_data, void *userdata) 
 {
 	if(sync_mode == "mq") {
-			receive_and_send_mq_messages(); 
+			receive_and_publish_mq_messages(); 
 			return MOSQ_ERR_SUCCESS;
 	}
 
@@ -408,7 +418,7 @@ int get_and_send_spooled_messages()
 }
 
 int counter = 0;
-int receive_and_send_mq_messages() 
+int receive_and_publish_mq_messages() 
 {
 	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
 
@@ -418,26 +428,15 @@ int receive_and_send_mq_messages()
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	struct mq_attr attr;
-
-	if(mq_getattr(mq_descriptor, &attr) == -1) {
-		int errsv = errno;
-		mosquitto_log_printf(MOSQ_LOG_INFO, "Couldn't get mq Attributes: %s %s" , strerrorname_np(errsv), strerror(errsv));
-		return MOSQ_ERR_SUCCESS;
-	}
-
-	vector<char> buffer(attr.mq_msgsize);
+	vector<char> buffer(mq_attributes.mq_msgsize);
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
 		
 		high_resolution_clock::time_point start_point_receive = high_resolution_clock::now();
 
-		if(mq_receive(mq_descriptor, buffer.data(), attr.mq_msgsize, NULL) == -1) { 
+		if(mq_receive(mq_descriptor, buffer.data(), mq_attributes.mq_msgsize, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
-
-		counter += 1;
-		cout << "C " << counter << endl;
 
 		high_resolution_clock::time_point stop_point_receive = high_resolution_clock::now();
 
