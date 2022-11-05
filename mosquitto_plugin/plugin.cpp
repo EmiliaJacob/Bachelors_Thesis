@@ -437,11 +437,6 @@ int receive_and_publish_mq_messages()
 		duration<double> time_difference_receive = stop_point_receive - start_point_receive;
 		double time_difference_receive_in_ms = time_difference_receive.count() * 1000;
 
-		if(!regex_match(buffer.data(), regex("(aabay/bids/)([0-9]+)(\\s)([0-9]+)(([.][0-9]+)?)"))) {
-			mosquitto_log_printf(MOSQ_LOG_INFO, "Undesired mq message format" );
-			return MOSQ_ERR_SUCCESS;
-		}
-
 		else {
 			vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
 			vector<char> topic(buffer.begin(), delimiter_element );
