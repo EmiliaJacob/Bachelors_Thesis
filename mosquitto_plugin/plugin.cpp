@@ -417,16 +417,9 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-int counter = 0;
 int receive_and_publish_mq_messages() 
 {
 	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
-
-	if(mq_descriptor == -1) {
-		int errsv = errno;
-		mosquitto_log_printf(MOSQ_LOG_INFO, "Invalid mq_descriptor: %s %s" , strerrorname_np(errsv), strerror(errsv));
-		return MOSQ_ERR_SUCCESS;
-	}
 
 	vector<char> buffer(mq_attributes.mq_msgsize);
 
