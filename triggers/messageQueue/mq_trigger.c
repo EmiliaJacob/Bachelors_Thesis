@@ -20,8 +20,16 @@ struct mq_attr mqttspool_attributes = {
     .mq_msgsize = 8192 // default groesse in Ubuntu 20
 };
 
+void sig_handler(int signo)
+{
+    printf("%d SIGNAL \n", signo);
+}
+
 void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
 {
+    signal(SIGALRM, sig_handler);
+
+
     static int mq_descriptor = -1;
     
     if(mq_descriptor == -1) {
