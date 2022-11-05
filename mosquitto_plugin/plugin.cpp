@@ -36,9 +36,9 @@ c_ydb_global _mqttspool("^ms");
 c_ydb_global dummy("dummy");
 
 mqd_t mq_descriptor = -1;
-struct mq_attr mq_attributes;
+struct mq_attr mqttspool_attributes;
 
-int max_mq_receive_per_tick = 10;
+int max_mq_receive_per_tick = 300;
 
 Json::StreamWriterBuilder builder;
 c_ydb_global _articles("^articles");
@@ -111,7 +111,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		if(mq_descriptor == -1)
 			return MOSQ_ERR_UNKNOWN;
 
-		if(mq_getattr(mq_descriptor, &mq_attributes) == -1) {
+		if(mq_getattr(mq_descriptor, &mqttspool_attributes) == -1) {
 			int latest_errno = errno;
 			mosquitto_log_printf(MOSQ_LOG_INFO, "Couldn't get mq Attributes: %s %s", strerrorname_np(latest_errno), strerror(latest_errno));
 			return MOSQ_ERR_UNKNOWN;
@@ -421,13 +421,14 @@ int receive_and_publish_mq_messages()
 {
 	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
 
-	vector<char> buffer(mq_attributes.mq_msgsize);
+	vector<char> buffer(mqttspool_attributes.mq_msgsize);
+	cout << mqttspool_attributes.mq_msgsize << endl;
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
 		
 		high_resolution_clock::time_point start_point_receive = high_resolution_clock::now();
 
-		if(mq_receive(mq_descriptor, buffer.data(), mq_attributes.mq_msgsize, NULL) == -1) { 
+		if(mq_receive(mq_descriptor, buffer.data(), mqttspool_attributes.mq_msgsize, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
 

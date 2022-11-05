@@ -15,12 +15,17 @@
 #define DELIMITER " "
 #define MQ_MSG_PRIO 1
 
+struct mq_attr mqttspool_attributes = {
+    .mq_maxmsg = 100,
+    .mq_maxmsg = 8192
+};
+
 void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
 {
     static int mq_descriptor = -1;
     
     if(mq_descriptor == -1) {
-        mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, NULL); 
+        mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, &mqttspool_attributes); 
 
         if(mq_descriptor == -1) {
             perror("mq_open failed");
