@@ -57,6 +57,8 @@ bool publish_mqtt_message(string topic, Json::Value &payload);
 
 bool publish_mqtt_message(string topic, string payload);
 
+double calculate_trigger_to_publish_duration_in_ms(double start_duration_rep);
+
 const int QOS = 0;
 const bool RETAIN = false;
 mosquitto_property *PROPERTIES = NULL;
@@ -441,16 +443,8 @@ int receive_and_publish_mq_messages()
 		vector<char> payload(delimiter_element + 1, buffer.end());
 		
 		if(time_measurement_trigger_to_publish) {
-			system_clock::time_point stop_point = system_clock::now();
-			duration<double> stop_duration = stop_point.time_since_epoch(); 
-
-			double start_duration_rep = stod(payload.data(), NULL);
-			duration<double> start_duration(start_duration_rep);
-
-			duration<double> time_difference = stop_duration - start_duration;
-			double time_difference_in_ms = time_difference.count() * 1000;
-
-			time_log_mq_trigger_to_publish << to_string(time_difference_in_ms) << "\n";
+		 	double start_duration_rep = strtod(payload.data(), NULL);
+			time_log_mq_trigger_to_publish << to_string(calculate_trigger_to_publish_duration_in_ms(start_duration_rep)) << "\n";
 		}
 
 		if(time_measurement_read_out_function && i == 0) { 
@@ -516,4 +510,20 @@ bool publish_mqtt_message(string topic, Json::Value &payload)
 	);
 
 	return (result == MOSQ_ERR_SUCCESS);
+}
+
+double calculate_trigger_to_publish_duration_in_ms(double start_duration_rep)
+{
+	system_clock::time_point stop_point = system_clock::now();
+	duration<double> stop_duration = stop_point.time_since_epoch(); 
+
+	duration<double> start_duration(start_duration_rep);
+	cout << "start: " << start_duration_rep << " Stop: " << stop_duration.count() << endl;
+
+	duration<double> time_difference = stop_duration - start_duration;
+	double time_difference_in_ms = time_difference.count() * 1000;
+	cout << "diff: " << time_difference_in_ms << endl;
+
+
+	return time_difference_in_ms;
 }

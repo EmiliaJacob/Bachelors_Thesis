@@ -27,7 +27,7 @@ void sig_handler(int signo)
 
 void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
 {
-    signal(SIGALRM, sig_handler);
+    //signal(SIGALRM, sig_handler);
 
 
     static int mq_descriptor = -1;
