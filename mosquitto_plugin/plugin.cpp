@@ -407,7 +407,8 @@ int get_and_send_spooled_messages()
 				double time_difference_in_ms = time_difference.count() * 1000;
 				double time_difference_without_get = time_difference_in_ms - time_difference_get_in_ms;
 
-				time_log_global_get_and_send_spooled_messages << to_string(time_difference_without_get) << "\n";
+				time_log_global_get_and_send_spooled_messages << time_difference_without_get;
+				time_log_global_get_and_send_spooled_messages << "\n";
 			}
 
 			publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["message"]); // TODO: vllt ueberall den Begriff payload oder message verwenden
@@ -463,7 +464,8 @@ int receive_and_publish_mq_messages()
 			double time_difference_in_ms = time_difference.count() * 1000;
 			double time_difference_without_receive = time_difference_in_ms - time_difference_receive_in_ms; 
 
-			time_log_mq_receive_mq_messages << to_string(time_difference_without_receive) << "\n";
+			time_log_mq_receive_mq_messages << time_difference_without_receive;
+			time_log_mq_receive_mq_messages << "\n";
 
 			publish_mqtt_message(topic, payload);
 		}
