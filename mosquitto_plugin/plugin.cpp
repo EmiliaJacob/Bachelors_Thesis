@@ -420,6 +420,18 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
+double get_time_difference_in_ms(double start_duration_rep)
+{
+	system_clock::time_point stop_point = system_clock::now();
+	duration<double> stop_duration = stop_point.time_since_epoch(); 
+
+	//double start_duration_rep = strtod(payload, NULL);
+	duration<double> start_duration(start_duration_rep);
+
+	duration<double> time_difference = stop_duration - start_duration;
+	return time_difference.count() * 1000;
+}
+
 int receive_and_publish_mq_messages() 
 {
 	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
@@ -444,16 +456,16 @@ int receive_and_publish_mq_messages()
 
 		
 		if(time_measurement_trigger_to_publish) {
-			system_clock::time_point stop_point = system_clock::now();
-			duration<double> stop_duration = stop_point.time_since_epoch(); 
+			// system_clock::time_point stop_point = system_clock::now();
+			// duration<double> stop_duration = stop_point.time_since_epoch(); 
 
 			double start_duration_rep = strtod(payload, NULL);
-			duration<double> start_duration(start_duration_rep);
+			// duration<double> start_duration(start_duration_rep);
 
-			duration<double> time_difference = stop_duration - start_duration;
-			double time_difference_in_ms = time_difference.count() * 1000;
+			// duration<double> time_difference = stop_duration - start_duration;
+			// double time_difference_in_ms = time_difference.count() * 1000;
 
-			time_log_mq_trigger_to_publish << time_difference_in_ms;
+			time_log_mq_trigger_to_publish << get_time_difference_in_ms(start_duration_rep);
 			time_log_mq_trigger_to_publish << "\n";
 		}
 
@@ -522,3 +534,4 @@ bool publish_mqtt_message(string topic, Json::Value &payload)
 
 	return (result == MOSQ_ERR_SUCCESS);
 }
+
