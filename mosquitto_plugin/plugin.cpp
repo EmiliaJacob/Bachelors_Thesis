@@ -192,16 +192,10 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(sync_mode == "client") {
 
 			if(time_measurement_trigger_to_publish) {
-				system_clock::time_point stop_point = system_clock::now();
-				duration<double> stop_duration = stop_point.time_since_epoch(); 
+				char *payload = (char*)ed->payload;
+				double start_duration_rep = strtod(payload, NULL);
 
-				double start_duration_rep = strtod(((char*)ed->payload), NULL);
-				duration<double> start_duration(start_duration_rep);
-
-				duration<double> time_difference = stop_duration - start_duration;
-				double time_difference_in_ms = time_difference.count() * 1000;
-
-				time_log_client_trigger_to_publish << time_difference_in_ms << endl;
+				time_log_client_trigger_to_publish << get_time_difference_in_ms(start_duration_rep) << endl;
 			}
 			
 			publish_mqtt_message(ed->topic, (char*)ed->payload);
@@ -388,16 +382,10 @@ int get_and_send_spooled_messages()
 		double time_difference_get_in_ms = time_difference_get.count() * 1000;
 
 			if(time_measurement_trigger_to_publish) { 
-				system_clock::time_point stop_point = system_clock::now();
-				duration<double> stop_duration = stop_point.time_since_epoch(); // Implicit cast
+				string payload = (string)dummy[iterator_dummy]["message"];
+				double start_duration_rep = stod(payload, NULL);
 
-				double start_duration_rep = stod(((string)dummy[iterator_dummy]["message"]), NULL);
-				duration<double> start_duration(start_duration_rep);
-
-				duration<double> time_difference = stop_duration - start_duration;
-				double time_difference_in_ms = time_difference.count() * 1000;
-
-				time_log_global_trigger_to_publish << time_difference_in_ms << endl;
+				time_log_global_trigger_to_publish << get_time_difference_in_ms(start_duration_rep) << endl;
 			}
 
 			if(time_measurement_read_out_function && first_iteration){ 
@@ -445,8 +433,7 @@ int receive_and_publish_mq_messages()
 		if(time_measurement_trigger_to_publish) {
 			double start_duration_rep = strtod(payload, NULL);
 			
-			double time_difference_in_ms = get_time_difference_in_ms(start_duration_rep);
-			time_log_mq_trigger_to_publish << time_difference_in_ms << endl;
+			time_log_mq_trigger_to_publish << get_time_difference_in_ms(start_duration_rep) << endl;
 		}
 
 		if(time_measurement_read_out_function && i == 0) { 
