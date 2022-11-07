@@ -192,9 +192,9 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 			if(time_measurement_trigger_to_publish) {
 				char *payload = (char*)ed->payload;
-				double start_duration_rep = strtod(payload, NULL);
+				double start_duration_count = strtod(payload, NULL);
 
-				time_log_client_trigger_to_publish << get_time_difference_in_ms(start_duration_rep) << endl;
+				time_log_client_trigger_to_publish << get_time_difference_in_ms(start_duration_count) << endl;
 			}
 			
 			publish_mqtt_message(ed->topic, (char*)ed->payload);
@@ -382,9 +382,9 @@ int get_and_send_spooled_messages()
 
 			if(time_measurement_trigger_to_publish) { 
 				string payload = (string)dummy[iterator_dummy]["message"];
-				double start_duration_rep = stod(payload, NULL);
+				double start_duration_count = stod(payload, NULL);
 
-				time_log_global_trigger_to_publish << get_time_difference_in_ms(start_duration_rep) << endl;
+				time_log_global_trigger_to_publish << get_time_difference_in_ms(start_duration_count) << endl;
 			}
 
 			if(time_measurement_read_out_function && first_iteration){ 
@@ -430,9 +430,9 @@ int receive_and_publish_mq_messages()
 
 		
 		if(time_measurement_trigger_to_publish) {
-			double start_duration_rep = strtod(payload, NULL);
+			double start_duration_count = strtod(payload, NULL);
 			
-			time_log_mq_trigger_to_publish << get_time_difference_in_ms(start_duration_rep) << endl;
+			time_log_mq_trigger_to_publish << get_time_difference_in_ms(start_duration_count) << endl;
 		}
 
 		if(time_measurement_read_out_function) { // TODO: Loop sollte mitgemessen werden
@@ -505,13 +505,13 @@ bool publish_mqtt_message(string topic, Json::Value &payload)
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
-double get_time_difference_in_ms(double start_duration_rep)
+double get_time_difference_in_ms(double start_duration_count)
 {
 	system_clock::time_point stop_point = system_clock::now();
 	duration<double> stop_duration = stop_point.time_since_epoch(); 
 
-	duration<double> start_duration(start_duration_rep);
+	duration<double> start_duration(start_duration_count);
 
-	duration<double> time_difference = stop_duration - start_duration; // TODO: hier vllt schon cast nach ms?
+	duration<double> time_difference = stop_duration - start_duration;
 	return time_difference.count() * 1000; 
 }
