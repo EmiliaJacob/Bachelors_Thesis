@@ -445,7 +445,7 @@ int receive_and_publish_mq_messages()
 			if(i != 0)
 				time_log_mq_receive_mq_messages << time_difference_without_receive << endl;
 			else {
-				time_log_mq_receive_mq_messages << "first loop iteration: "  ctime_difference_without_receive << endl;
+				time_log_mq_receive_mq_messages << "first loop iteration: " << time_difference_without_receive << endl;
 			}
 				
 
