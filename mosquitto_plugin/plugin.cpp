@@ -193,13 +193,14 @@ static int callback_message(int event, void *event_data, void *userdata)
 				system_clock::time_point stop_point = system_clock::now();
 				duration<double> stop_duration = stop_point.time_since_epoch(); 
 
-				double start_duration_rep = stod(((char*)ed->payload), NULL);
+				double start_duration_rep = strtod(((char*)ed->payload), NULL);
 				duration<double> start_duration(start_duration_rep);
 
 				duration<double> time_difference = stop_duration - start_duration;
 				double time_difference_in_ms = time_difference.count() * 1000;
 
-				time_log_client_trigger_to_publish << to_string(time_difference_in_ms) + "\n";
+				time_log_client_trigger_to_publish << time_difference_in_ms;
+				time_log_mq_trigger_to_publish <<  "\n";
 			}
 			
 			publish_mqtt_message(ed->topic, (char*)ed->payload);
@@ -395,7 +396,8 @@ int get_and_send_spooled_messages()
 				duration<double> time_difference = stop_duration - start_duration;
 				double time_difference_in_ms = time_difference.count() * 1000;
 
-				time_log_global_trigger_to_publish << to_string(time_difference_in_ms) + "\n";
+				time_log_global_trigger_to_publish << time_difference_in_ms;
+				time_log_global_trigger_to_publish << "\n";
 			}
 
 			if(time_measurement_read_out_function && first_iteration){ 
@@ -450,8 +452,8 @@ int receive_and_publish_mq_messages()
 			duration<double> time_difference = stop_duration - start_duration;
 			double time_difference_in_ms = time_difference.count() * 1000;
 
-			cout << time_difference_in_ms << endl;
-			time_log_mq_trigger_to_publish << to_string(time_difference_in_ms) << "\n";
+			time_log_mq_trigger_to_publish << time_difference_in_ms;
+			time_log_mq_trigger_to_publish << "\n";
 		}
 
 		if(time_measurement_read_out_function && i == 0) { 
