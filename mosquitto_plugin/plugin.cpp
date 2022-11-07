@@ -510,9 +510,8 @@ double get_time_difference_in_ms(double start_duration_rep)
 	system_clock::time_point stop_point = system_clock::now();
 	duration<double> stop_duration = stop_point.time_since_epoch(); 
 
-	//double start_duration_rep = strtod(payload, NULL);
 	duration<double> start_duration(start_duration_rep);
 
-	duration<double> time_difference = stop_duration - start_duration;
-	return time_difference.count() * 1000;
+	duration<double> time_difference = stop_duration - start_duration; // TODO: hier vllt schon cast nach ms?
+	return time_difference.count() * 1000; 
 }
