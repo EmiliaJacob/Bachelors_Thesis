@@ -456,17 +456,10 @@ int receive_and_publish_mq_messages()
 
 		
 		if(time_measurement_trigger_to_publish) {
-			system_clock::time_point stop_point = system_clock::now();
-			duration<double> stop_duration = stop_point.time_since_epoch(); 
-
 			double start_duration_rep = strtod(payload, NULL);
-			duration<double> start_duration(start_duration_rep);
-
-			duration<double> time_difference = stop_duration - start_duration;
-			double time_difference_in_ms = time_difference.count() * 1000;
-
-			time_log_mq_trigger_to_publish << get_time_difference_in_ms(start_duration_rep);
-			time_log_mq_trigger_to_publish << "\n";
+			
+			double time_difference_in_ms = get_time_difference_in_ms(start_duration_rep);
+			time_log_mq_trigger_to_publish << time_difference_in_ms << endl;
 		}
 
 		if(time_measurement_read_out_function && i == 0) { 
