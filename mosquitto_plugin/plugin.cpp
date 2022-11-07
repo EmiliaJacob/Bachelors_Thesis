@@ -435,14 +435,19 @@ int receive_and_publish_mq_messages()
 			time_log_mq_trigger_to_publish << get_time_difference_in_ms(start_duration_rep) << endl;
 		}
 
-		if(time_measurement_read_out_function && i == 0) { 
+		if(time_measurement_read_out_function) { // TODO: Loop sollte mitgemessen werden
 			high_resolution_clock::time_point stop = high_resolution_clock::now();
 
 			duration<double> time_difference = stop - start_function_time;
 			double time_difference_in_ms = time_difference.count() * 1000;
 			double time_difference_without_receive = time_difference_in_ms - time_difference_receive_in_ms; 
 
-			time_log_mq_receive_mq_messages << time_difference_without_receive << endl;
+			if(i != 0)
+				time_log_mq_receive_mq_messages << time_difference_without_receive << endl;
+			else {
+				time_log_mq_receive_mq_messages << "first loop iteration: "  ctime_difference_without_receive << endl;
+			}
+				
 
 			publish_mqtt_message(topic, payload);
 		}
