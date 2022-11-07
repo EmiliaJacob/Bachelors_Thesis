@@ -421,35 +421,36 @@ int receive_and_publish_mq_messages()
 {
 	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
 
-	vector<char> buffer(mqttspool_attributes.mq_msgsize);
+	char buffer[mqttspool_attributes.mq_msgsize + 1];
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
 		
 		high_resolution_clock::time_point start_point_receive = high_resolution_clock::now();
 
-		if(mq_receive(mq_descriptor, buffer.data(), mqttspool_attributes.mq_msgsize, NULL) == -1) { 
+		if(mq_receive(mq_descriptor, buffer, mqttspool_attributes.mq_msgsize, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
+
+		char* topic = strtok(buffer, " ");
+		char* payload = strtok(NULL, " ");
 
 		high_resolution_clock::time_point stop_point_receive = high_resolution_clock::now();
 
 		duration<double> time_difference_receive = stop_point_receive - start_point_receive;
 		double time_difference_receive_in_ms = time_difference_receive.count() * 1000;
 
-		vector<char>::iterator delimiter_element = find(buffer.begin(), buffer.end(), ' ');
-		vector<char> topic(buffer.begin(), delimiter_element );
-		vector<char> payload(delimiter_element + 1, buffer.end());
 		
 		if(time_measurement_trigger_to_publish) {
 			system_clock::time_point stop_point = system_clock::now();
 			duration<double> stop_duration = stop_point.time_since_epoch(); 
 
-			double start_duration_rep = stod(payload.data(), NULL);
+			double start_duration_rep = strtod(payload, NULL);
 			duration<double> start_duration(start_duration_rep);
 
 			duration<double> time_difference = stop_duration - start_duration;
 			double time_difference_in_ms = time_difference.count() * 1000;
 
+			cout << time_difference_in_ms << endl;
 			time_log_mq_trigger_to_publish << to_string(time_difference_in_ms) << "\n";
 		}
 
@@ -462,11 +463,11 @@ int receive_and_publish_mq_messages()
 
 			time_log_mq_receive_mq_messages << to_string(time_difference_without_receive) << "\n";
 
-			publish_mqtt_message(topic.data(), payload.data());
+			publish_mqtt_message(topic, payload);
 		}
 
-		publish_mqtt_message(topic.data(), payload.data());
-		}
+		publish_mqtt_message(topic, payload);
+	}
 
 	return MOSQ_ERR_SUCCESS;
 }
