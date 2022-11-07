@@ -182,7 +182,6 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
 }
 
-int c = 0;
 static int callback_message(int event, void *event_data, void *userdata) 
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
