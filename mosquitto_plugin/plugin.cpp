@@ -194,8 +194,9 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 				time_log_client_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 			}
-			
-			publish_mqtt_message(ed->topic, (char*)ed->payload);
+			else {
+				publish_mqtt_message(ed->topic, (char*)ed->payload);
+			}
 		}
 
 		return MOSQ_ERR_SUCCESS;
@@ -375,8 +376,10 @@ int get_and_send_spooled_messages()
 
 			time_log_global_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 		}
+		else {
+			publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["payload"]); 
+		}
 
-		publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["payload"]); 
 	}
 	
 	dummy.kill();
@@ -400,8 +403,9 @@ int receive_and_publish_mq_messages()
 			
 			time_log_mq_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 		}
-
-		publish_mqtt_message(topic, payload);
+		else {
+			publish_mqtt_message(topic, payload);
+		}
 	}
 
 	return MOSQ_ERR_SUCCESS;
