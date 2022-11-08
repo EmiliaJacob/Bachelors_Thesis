@@ -189,7 +189,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(sync_mode == "client") {
 
 			if(time_measurement_trigger_to_publish) {
-				char *payload = (char*)ed->payload; // TODO: vllt payload direkt in FUnktion uebergeben
+				char *payload = (char*)ed->payload; 
 				int64_t start_duration_count = strtoll(payload, NULL, 10);
 
 				time_log_client_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
@@ -254,7 +254,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		string article_id = request_payload["id"].asString();
 		string nickname = request_payload["nickname"].asString(); 
 
-		int bid = stoi(request_payload["bid"].asString()); // TODO: maybe change everywhere to int
+		int bid = stoi(request_payload["bid"].asString()); 
 		int maxbid = stoi(_articles[article_id]["maxbid"]); 
 
 		if(!_articles[article_id].hasChilds()) {
