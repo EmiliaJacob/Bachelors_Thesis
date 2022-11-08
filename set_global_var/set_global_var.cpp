@@ -21,15 +21,14 @@ int main(int argc, char** argv)
 
   c_ydb_global _articles("^articles");
 
-  system_clock::time_point start_point;
-  duration<double> start_duration;
+  steady_clock::time_point start_point;
+  duration<int64_t, std::nano> start_duration;
 
-
-  for (int i=0; i<number_of_set_calls; i++)
-  { 
-    start_point = system_clock::now();
-    start_duration = start_point.time_since_epoch();
-
+  for (int i=0; i<number_of_set_calls; i++) { 
+    start_point = steady_clock::now();
+    start_duration = duration_cast<duration<int64_t,std::nano>>(start_point.time_since_epoch());
+    
+    cout << "sent: " << std::to_string(start_duration.count()) << endl;
     _articles[article_id]["bid"] = std::to_string(start_duration.count());
   }
 

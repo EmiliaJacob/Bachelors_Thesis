@@ -57,7 +57,7 @@ bool publish_mqtt_message(string topic, Json::Value &payload);
 
 bool publish_mqtt_message(string topic, string payload);
 
-double get_time_difference_in_ms(double start_duration_rep);
+int64_t get_time_difference_in_nano(int64_t start_duration_rep);
 
 const int QOS = 0;
 const bool RETAIN = false;
@@ -191,10 +191,10 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(sync_mode == "client") {
 
 			if(time_measurement_trigger_to_publish) {
-				char *payload = (char*)ed->payload;
-				double start_duration_count = strtod(payload, NULL);
+				char *payload = (char*)ed->payload; // TODO: vllt payload direkt in FUnktion uebergeben
+				int64_t start_duration_count = strtoll(payload, NULL, 10);
 
-				time_log_client_trigger_to_publish << get_time_difference_in_ms(start_duration_count) << endl;
+				time_log_client_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 			}
 			
 			publish_mqtt_message(ed->topic, (char*)ed->payload);
@@ -382,9 +382,9 @@ int get_and_send_spooled_messages()
 
 			if(time_measurement_trigger_to_publish) { 
 				string payload = (string)dummy[iterator_dummy]["message"];
-				double start_duration_count = stod(payload, NULL);
+				int64_t start_duration_count = stoll(payload, NULL, 10);
 
-				time_log_global_trigger_to_publish << get_time_difference_in_ms(start_duration_count) << endl;
+				time_log_global_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 			}
 
 			if(time_measurement_read_out_function && first_iteration){ 
@@ -430,9 +430,9 @@ int receive_and_publish_mq_messages()
 
 		
 		if(time_measurement_trigger_to_publish) {
-			double start_duration_count = strtod(payload, NULL);
+			int64_t start_duration_count = strtoll(payload, NULL, 10);
 			
-			time_log_mq_trigger_to_publish << get_time_difference_in_ms(start_duration_count) << endl;
+			time_log_mq_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 		}
 
 		if(time_measurement_read_out_function) { // TODO: Loop sollte mitgemessen werden
@@ -505,13 +505,10 @@ bool publish_mqtt_message(string topic, Json::Value &payload)
 	return (result == MOSQ_ERR_SUCCESS);
 }
 
-double get_time_difference_in_ms(double start_duration_count)
+int64_t get_time_difference_in_nano(int64_t start_duration_count)
 {
-	system_clock::time_point stop_point = system_clock::now();
-	duration<double> stop_duration = stop_point.time_since_epoch(); 
+	steady_clock::time_point stop_point = steady_clock::now();
+	duration<int64_t, nano> stop_duration = duration_cast<duration<int64_t, nano>>(stop_point.time_since_epoch()); 
 
-	duration<double> start_duration(start_duration_count);
-
-	duration<double> time_difference = stop_duration - start_duration;
-	return time_difference.count() * 1000; 
+	return stop_duration.count() - start_duration_count;
 }
