@@ -370,12 +370,13 @@ int get_and_send_spooled_messages()
 	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") { 
 		if(time_measurement_trigger_to_publish) { 
 			string payload = (string)dummy[iterator_dummy]["payload"];
+
 			int64_t start_duration_count = stoll(payload, NULL, 10);
 
 			time_log_global_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 		}
 
-		publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["payload"]); // TODO: vllt ueberall den Begriff payload oder message verwenden
+		publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["payload"]); 
 	}
 	
 	dummy.kill();

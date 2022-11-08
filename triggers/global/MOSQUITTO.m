@@ -7,7 +7,7 @@ spool(dest,clid,topic,payload)
 	else  do 
 	. new (dest,@dest,clid,topic,payload) 
 	set nr=$INCREMENT(@dest) 
-	set dummy("client")=clid,dummy("topic")=topic,dummy("payload")=payload 
+	set dummy("clientid")=clid,dummy("topic")=topic,dummy("payload")=payload 
 	merge @(dest_"("_nr_")")=dummy 
 	if $EXTRACT(dest)="^" lock -@dest 
 	quit
