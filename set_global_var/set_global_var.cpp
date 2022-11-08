@@ -28,7 +28,6 @@ int main(int argc, char** argv)
     start_point = steady_clock::now();
     start_duration = duration_cast<duration<int64_t,std::nano>>(start_point.time_since_epoch());
     
-    cout << "sent: " << std::to_string(start_duration.count()) << endl;
     _articles[article_id]["bid"] = std::to_string(start_duration.count());
   }
 

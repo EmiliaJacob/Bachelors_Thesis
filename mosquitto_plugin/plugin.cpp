@@ -1,10 +1,8 @@
-// Mosquitto
 #include "mosquitto_broker.h"
 #include "mosquitto_plugin.h"
 #include "mosquitto.h"
 #include "mqtt_protocol.h"
 
-// Posix Message Queue
 #include <mqueue.h> 
 #include <errno.h>
 
@@ -64,7 +62,6 @@ const bool RETAIN = false;
 mosquitto_property *PROPERTIES = NULL;
 
 static mosquitto_plugin_id_t * mosq_pid = NULL;
-
 
 int mosquitto_plugin_version(int supported_version_count, const int *supported_versions)
 {
@@ -182,6 +179,7 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 	|| mosquitto_callback_unregister(mosq_pid, MOSQ_EVT_TICK, callback_tick, NULL);
 }
 
+// Callback - Funktionen
 static int callback_message(int event, void *event_data, void *userdata) 
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
@@ -344,11 +342,9 @@ static int callback_tick(int event, void *event_data, void *userdata)
 	}
 }
 
-
+// Auslese - Funktionen
 int get_and_send_spooled_messages()
 {
-	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
-
 	if(!_mqttspool.hasChilds())
 		return MOSQ_ERR_SUCCESS;
 
@@ -359,7 +355,7 @@ int get_and_send_spooled_messages()
 
 	string interator_mqttspool = "";
 
-	while(interator_mqttspool = _mqttspool[interator_mqttspool].nextSibling(), interator_mqttspool != "") { 
+	while(interator_mqttspool = _mqttspool[interator_mqttspool].nextSibling(), interator_mqttspool != "") { //TODO: Hier auch messen
 		dummy[interator_mqttspool] = interator_mqttspool;		
 		dummy[interator_mqttspool]["topic"] = (string)_mqttspool[interator_mqttspool]["topic"];
 		dummy[interator_mqttspool]["clientid"] = (string)_mqttspool[interator_mqttspool]["clientid"];
@@ -370,36 +366,16 @@ int get_and_send_spooled_messages()
 	_mqttspool.lock_dec();
 
 	string iterator_dummy = "";
-	bool first_iteration = true;
 
-	high_resolution_clock::time_point start_point_get = high_resolution_clock::now();
+	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") { 
+		if(time_measurement_trigger_to_publish) { 
+			string payload = (string)dummy[iterator_dummy]["message"];
+			int64_t start_duration_count = stoll(payload, NULL, 10);
 
-	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") {
+			time_log_global_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
+		}
 
-		high_resolution_clock::time_point stop_point_get = high_resolution_clock::now();
-		duration<double> time_difference_get = stop_point_get - start_point_get;
-		double time_difference_get_in_ms = time_difference_get.count() * 1000;
-
-			if(time_measurement_trigger_to_publish) { 
-				string payload = (string)dummy[iterator_dummy]["message"];
-				int64_t start_duration_count = stoll(payload, NULL, 10);
-
-				time_log_global_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
-			}
-
-			if(time_measurement_read_out_function && first_iteration){ 
-				high_resolution_clock::time_point stop = high_resolution_clock::now();
-
-				duration<double> time_difference = stop - start_function_time;
-				double time_difference_in_ms = time_difference.count() * 1000;
-				double time_difference_without_get = time_difference_in_ms - time_difference_get_in_ms;
-
-				time_log_global_get_and_send_spooled_messages << time_difference_without_get << endl;
-			}
-
-			publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["message"]); // TODO: vllt ueberall den Begriff payload oder message verwenden
-
-			first_iteration = false;
+		publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["message"]); // TODO: vllt ueberall den Begriff payload oder message verwenden
 	}
 	
 	dummy.kill();
@@ -408,14 +384,9 @@ int get_and_send_spooled_messages()
 
 int receive_and_publish_mq_messages() 
 {
-	high_resolution_clock::time_point start_function_time = high_resolution_clock::now(); 
-
 	char buffer[mqttspool_attributes.mq_msgsize + 1];
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
-		
-		high_resolution_clock::time_point start_point_receive = high_resolution_clock::now();
-
 		if(mq_receive(mq_descriptor, buffer, mqttspool_attributes.mq_msgsize, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
@@ -423,33 +394,10 @@ int receive_and_publish_mq_messages()
 		char* topic = strtok(buffer, " ");
 		char* payload = strtok(NULL, " ");
 
-		high_resolution_clock::time_point stop_point_receive = high_resolution_clock::now();
-
-		duration<double> time_difference_receive = stop_point_receive - start_point_receive;
-		double time_difference_receive_in_ms = time_difference_receive.count() * 1000;
-
-		
 		if(time_measurement_trigger_to_publish) {
 			int64_t start_duration_count = strtoll(payload, NULL, 10);
 			
 			time_log_mq_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
-		}
-
-		if(time_measurement_read_out_function) { // TODO: Loop sollte mitgemessen werden
-			high_resolution_clock::time_point stop = high_resolution_clock::now();
-
-			duration<double> time_difference = stop - start_function_time;
-			double time_difference_in_ms = time_difference.count() * 1000;
-			double time_difference_without_receive = time_difference_in_ms - time_difference_receive_in_ms; 
-
-			if(i != 0)
-				time_log_mq_receive_mq_messages << time_difference_without_receive << endl;
-			else {
-				time_log_mq_receive_mq_messages << "first loop iteration: " << time_difference_without_receive << endl;
-			}
-				
-
-			publish_mqtt_message(topic, payload);
 		}
 
 		publish_mqtt_message(topic, payload);
@@ -458,7 +406,7 @@ int receive_and_publish_mq_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-
+// Helfer - Funktionen
 bool literal_to_json(Json::Value *json, char *literal) 
 {
 	istringstream literal_stream (literal);
