@@ -355,11 +355,11 @@ int get_and_send_spooled_messages()
 
 	string interator_mqttspool = "";
 
-	while(interator_mqttspool = _mqttspool[interator_mqttspool].nextSibling(), interator_mqttspool != "") { //TODO: Hier auch messen
+	while(interator_mqttspool = _mqttspool[interator_mqttspool].nextSibling(), interator_mqttspool != "") { 
 		dummy[interator_mqttspool] = interator_mqttspool;		
 		dummy[interator_mqttspool]["topic"] = (string)_mqttspool[interator_mqttspool]["topic"];
 		dummy[interator_mqttspool]["clientid"] = (string)_mqttspool[interator_mqttspool]["clientid"];
-		dummy[interator_mqttspool]["message"] = (string)_mqttspool[interator_mqttspool]["message"];
+		dummy[interator_mqttspool]["payload"] = (string)_mqttspool[interator_mqttspool]["payload"];
 	}
 
 	_mqttspool.kill();
@@ -369,13 +369,13 @@ int get_and_send_spooled_messages()
 
 	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") { 
 		if(time_measurement_trigger_to_publish) { 
-			string payload = (string)dummy[iterator_dummy]["message"];
+			string payload = (string)dummy[iterator_dummy]["payload"];
 			int64_t start_duration_count = stoll(payload, NULL, 10);
 
 			time_log_global_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 		}
 
-		publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["message"]); // TODO: vllt ueberall den Begriff payload oder message verwenden
+		publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["payload"]); // TODO: vllt ueberall den Begriff payload oder message verwenden
 	}
 	
 	dummy.kill();
