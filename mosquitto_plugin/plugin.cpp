@@ -308,7 +308,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 			return MOSQ_ERR_SUCCESS;
 		}
 
-		if(stoi(_articles[article_id]["bid"]) >  0) {  // neues gebot niedriger als hoechstgebot. Gebot wird erhoeht. TODO: Weshalb der Check hier? // TODO: Code dokumentiert sich nicht selbst -> Mehr Refactoring
+		if(bid > stoi(_articles[article_id]["bid"])) {  // neues Gebot niedriger als hoechstgebot. Gebot wird erhoeht.
 			_articles[article_id]["bid"] = bid;
 
 			string bid_notice_topic = "aabay/bids/" + article_id;
@@ -416,6 +416,7 @@ int receive_and_publish_mq_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
+// Helfer Funktionen
 bool publish_mqtt_message(string topic, string payload) 
 {
 	int result = mosquitto_broker_publish_copy( 
