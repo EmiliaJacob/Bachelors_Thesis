@@ -38,8 +38,12 @@ struct mq_attr mqttspool_attributes;
 
 int max_mq_receive_per_tick = 300;
 
-Json::StreamWriterBuilder builder;
+Json::CharReaderBuilder char_reader_builder;
+Json::StreamWriterBuilder stream_writer_builder;
+Json::CharReader *char_reader;
+
 c_ydb_global _articles("^articles");
+
 
 static int callback_message(int event, void *event_data, void *userdata);
 
@@ -80,6 +84,8 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	mosq_pid = identifier;
 
 	mosquitto_log_printf(MOSQ_LOG_INFO, "Init %d\n", opt_count);
+
+	char_reader = char_reader_builder.newCharReader();
 
 	for (int i = 0; i < opt_count; i++) {
 		if(!strcmp(opts[i].key, "sync_mode")) {
@@ -210,12 +216,11 @@ static int callback_message(int event, void *event_data, void *userdata)
 	Json::Value response_payload;
 	response_payload["rc"] = 0;
 
-	if(!literal_to_json(&request_payload, (char*)ed->payload)) {
-		response_payload["rc"] = -1;
-		publish_mqtt_message(response_topic, response_payload);
+	char* payload = (char*)ed->payload;
+	bool parse_result = char_reader->parse(payload, payload + strlen(payload), &request_payload, NULL);
 
-		return MOSQ_ERR_SUCCESS; 
-	}
+	if(!parse_result)
+		return MOSQ_ERR_SUCCESS;
 
 	if(request_payload["action"] == "get_articles") {
 		string iterator = "";
@@ -411,21 +416,6 @@ int receive_and_publish_mq_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-// Helfer - Funktionen
-bool literal_to_json(Json::Value *json, char *literal) 
-{
-	istringstream literal_stream (literal);
-
-	try {
-		literal_stream >> *json;
-	} 
-	catch(exception& e) {
-		return false;
-	}
-
-	return true;
-}
-
 bool publish_mqtt_message(string topic, string payload) 
 {
 	int result = mosquitto_broker_publish_copy( 
@@ -443,7 +433,7 @@ bool publish_mqtt_message(string topic, string payload)
 
 bool publish_mqtt_message(string topic, Json::Value &payload) 
 {  
-	string serialized_payload = Json::writeString(builder, payload);
+	string serialized_payload = Json::writeString(stream_writer_builder, payload);
 
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
