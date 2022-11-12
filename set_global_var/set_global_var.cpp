@@ -28,7 +28,7 @@ int main(int argc, char** argv)
     start_point = steady_clock::now();
     start_duration = duration_cast<duration<int64_t,std::nano>>(start_point.time_since_epoch());
     
-    _articles[article_id]["bid"] = std::to_string(start_duration.count());
+    _articles[article_id]["title"] = std::to_string(start_duration.count());
   }
 
   return 0;
