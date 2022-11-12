@@ -1,15 +1,15 @@
 var m;
 
 window.onload = async function() {
-	m = new mqtt_fetch("aabay"); // prefix mqttfetch/aabay
-	await m.init("localhost", 1884); // MQTT over websockets!!
+	m = new mqtt_fetch("aabay"); 
+	await m.init("localhost", 1884); 
 	m.set_callback(-1, rx_status, true);
 	make_list();
 	document.getElementById("send").addEventListener("click", tx_bid);
 }
 
 async function make_list() {
-	var articles = await m.send({action: "get_articles"}); //sendet an topic/clid/fr/counter | bekommt json objekt vom backend
+	var articles = await m.send({action: "get_articles"}); 
 	console.log(articles);
 	for (let i = 0; i < articles.articles.length; i++) {
 		let node = document.createElement("li");
@@ -21,9 +21,10 @@ async function make_list() {
 		node.lastChild.setAttribute("class", "bid-" + articles.articles[i].id)
 		node.lastChild.appendChild(document.createTextNode(articles.articles[i].bid));
 		node.appendChild(document.createTextNode(" \u20ac"));
-		node.addEventListener("click", show); // show fkt wird bei click eines items in der liste aufgerufen
+		node.addEventListener("click", show); 
 		document.getElementById("list").appendChild(node);
-		m.set_callback("aabay/bids/" +  articles.articles[i].id, rx_bid, true); // wenn eine nachricht auf aabay/bids/artid empfangen wird, dann wird rx_bid aufgerufen
+		m.set_callback("aabay/bids/" +  articles.articles[i].id, rx_bid, true);  // TODO: warum hier true?
+		m.set_callback("aabay/title/" +  articles.articles[i].id, rx_title, false);
 	}
 }
 
@@ -39,7 +40,7 @@ async function show(prm) {
 	document.getElementById("bid").setAttribute("class", "bid-" + article.article.id)
 }
 
-function rx_bid(topic, data) { // wird aufgerufen wenn neue bid nachricht empfangen wird
+function rx_bid(topic, data) { 
 	console.log(topic, data);
 	let id = topic.split("/");
 	id = id[id.length - 1];
@@ -50,12 +51,20 @@ function rx_bid(topic, data) { // wird aufgerufen wenn neue bid nachricht empfan
 	}
 }
 
+function rx_title(topic, data) {
+	let article_id = topic.split('/')[2];
+	let list_item = document.getElementById('list_' + article_id);
+	let title = list_item.firstChild;
+	title.nodeValue = data.payloadString;
+}
+
+
 function rx_status(data) {
 	console.log("rx_status", data, JSON.stringify(data));
 	document.getElementById("status").firstChild.nodeValue = JSON.stringify(data);
 }
 
-async function tx_bid() { // wird bei click auf bid button aufgerufen
+async function tx_bid() { 
 	var result = await m.send({
 		action: "bid",
 		id: document.getElementById("id").firstChild.nodeValue,

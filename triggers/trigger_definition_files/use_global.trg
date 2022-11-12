@@ -1,2 +1,2 @@
 -*
-+^articles(articleId=*,"bid") -commands=Set -xecute="d spool^MOSQUITTO(""^ms"","""",""aabay/bids/""_articleId,$ZTVALUE)" -name=spool
++^articles(articleId=*,"title") -commands=Set -xecute="d spool^MOSQUITTO(""^ms"","""",""aabay/title/""_articleId,$ZTVALUE)" -name=spool
