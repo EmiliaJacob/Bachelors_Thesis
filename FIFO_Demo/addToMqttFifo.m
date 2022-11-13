@@ -1,7 +1,7 @@
  set mosquittoFifo="/ydbay/FIFO_Demo/MqttFifo"
  open mosquittoFifo:fifo
  set topic="aabay/title/"_articleId
- set message=$ZTVALUE
+ set payload=$ZTVALUE
  use mosquittoFifo 
- write topic_" "_message,!
+ write topic_" "_payload,!
  close mosquittoFifo
