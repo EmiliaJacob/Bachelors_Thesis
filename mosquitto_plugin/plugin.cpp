@@ -214,6 +214,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 
 	Json::Value request_payload;
 	Json::Value response_payload;
+
 	response_payload["rc"] = 0;
 
 	char* payload = (char*)ed->payload;
@@ -419,7 +420,7 @@ int receive_and_publish_mq_messages()
 // Helfer Funktionen
 bool publish_mqtt_message(string topic, string payload) 
 {
-	int result = mosquitto_broker_publish_copy( 
+	int result = mosquitto_broker_publish( 
 		NULL,
 		topic.c_str(),
 		strlen(payload.c_str()),
@@ -436,7 +437,7 @@ bool publish_mqtt_message(string topic, Json::Value &payload)
 {  
 	string serialized_payload = Json::writeString(stream_writer_builder, payload);
 
-	int result = mosquitto_broker_publish_copy( 
+	int result = mosquitto_broker_publish( 
 		NULL,
 		topic.c_str(),
 		strlen(serialized_payload.c_str()), 

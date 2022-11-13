@@ -1,6 +1,4 @@
-MOSQUITTO	
-;
-spool(dest,clid,topic,payload) 
+appendMessage(dest,clid,topic,payload) 
 	if $EXTRACT(dest)="^" do 
 	. new (dest,clid,topic,payload) 
 	. lock +@dest 
