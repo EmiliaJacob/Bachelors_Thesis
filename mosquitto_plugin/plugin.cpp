@@ -420,7 +420,7 @@ int receive_and_publish_mq_messages()
 // Helfer Funktionen
 bool publish_mqtt_message(string topic, string payload) 
 {
-	int result = mosquitto_broker_publish( 
+	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
 		strlen(payload.c_str()),
@@ -437,7 +437,7 @@ bool publish_mqtt_message(string topic, Json::Value &payload)
 {  
 	string serialized_payload = Json::writeString(stream_writer_builder, payload);
 
-	int result = mosquitto_broker_publish( 
+	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
 		strlen(serialized_payload.c_str()), 
