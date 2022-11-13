@@ -435,13 +435,13 @@ bool publish_mqtt_message(string topic, string payload)
 
 bool publish_mqtt_message(string topic, Json::Value &payload) 
 {  
-	string serialized_payload = Json::writeString(stream_writer_builder, payload);
+	string json_as_string_type = Json::writeString(stream_writer_builder, payload);
 
 	int result = mosquitto_broker_publish_copy( 
 		NULL,
 		topic.c_str(),
-		strlen(serialized_payload.c_str()), 
-		serialized_payload.c_str(),
+		strlen(json_as_string_type.c_str()), 
+		json_as_string_type.c_str(),
 		QOS,
 		RETAIN,
 		PROPERTIES
