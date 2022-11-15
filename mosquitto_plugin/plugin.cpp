@@ -34,8 +34,13 @@ c_ydb_global _mqttspool("^ms");
 c_ydb_global dummy("dummy");
 
 mqd_t mq_descriptor = -1;
-struct mq_attr mqttspool_attributes;
 
+struct mq_attr mqttspool_attributes = {
+    .mq_maxmsg = 10,
+    .mq_msgsize = 8192
+};
+
+int counter = 0;
 int max_mq_receive_per_tick = 300;
 
 Json::CharReaderBuilder char_reader_builder;
