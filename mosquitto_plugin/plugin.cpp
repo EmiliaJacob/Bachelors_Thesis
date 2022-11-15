@@ -116,7 +116,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	}
 
 	if(sync_mode == "mq") {
-		mq_descriptor = mq_open("/mqsync", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, NULL); 
+		mq_descriptor = mq_open("/mqsync", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, &mqttspool_attributes); 
 
 		if(mq_descriptor == -1)
 			return MOSQ_ERR_UNKNOWN;
