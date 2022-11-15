@@ -195,7 +195,6 @@ static int callback_message(int event, void *event_data, void *userdata)
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
 
-	//TODO: Wird ACL davor ausgefuehrt ? Funktionstimecheck inkl ACL machen? Wann wird ACL - Callback aufgerufen?
 	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { // Hier wird sync Nachricht von Client Implementation ausgelesen
 		if(sync_mode == "client") {
 
