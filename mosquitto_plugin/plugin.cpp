@@ -120,12 +120,6 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 
 		if(mq_descriptor == -1)
 			return MOSQ_ERR_UNKNOWN;
-
-		if(mq_getattr(mq_descriptor, &mqttspool_attributes) == -1) {
-			int latest_errno = errno;
-			mosquitto_log_printf(MOSQ_LOG_INFO, "Couldn't get mq Attributes: %s %s", strerrorname_np(latest_errno), strerror(latest_errno));
-			return MOSQ_ERR_UNKNOWN;
-		}
 	}
 
 	if(time_measurement_trigger_to_publish){
