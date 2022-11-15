@@ -355,6 +355,8 @@ int get_and_send_spooled_messages()
 	if(!_mqttspool.hasChilds())
 		return MOSQ_ERR_SUCCESS;
 
+	cout << "READING MESSAGES" << endl;
+
 	int lock_inc_result =_mqttspool.lock_inc(0);
 
 	if(lock_inc_result != YDB_OK)  // Lock konnte nicht gesetzt werden

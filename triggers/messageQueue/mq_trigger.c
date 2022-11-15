@@ -11,13 +11,13 @@
 
 #include <signal.h>
 
-#define MQ_NAME "/mqttspool" 
+#define MQ_NAME "/mqsync" 
 #define DELIMITER " "
 #define MQ_MSG_PRIO 1
 
 struct mq_attr mqttspool_attributes = {
-    .mq_maxmsg = 100,
-    .mq_msgsize = 8192 // default groesse in Ubuntu 20
+    .mq_maxmsg = 10,
+    .mq_msgsize = 8192
 };
 
 void sig_handler(int signo)
@@ -28,6 +28,8 @@ void sig_handler(int signo)
 void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
 {
     //signal(SIGALRM, sig_handler);
+    if(count != 2)
+       return; 
 
     static int mq_descriptor = -1;
     
