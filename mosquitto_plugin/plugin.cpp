@@ -368,6 +368,8 @@ int get_and_send_spooled_messages()
 	}
 
 	_mqttspool.kill();
+	cout << (string)_mqttspool << endl;
+	_mqttspool = 0;
 	_mqttspool.lock_dec();
 
 	string iterator_dummy = "";
