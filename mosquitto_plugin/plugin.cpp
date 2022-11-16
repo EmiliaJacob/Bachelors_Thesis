@@ -363,7 +363,6 @@ int get_and_send_spooled_messages()
 	while(interator_mqttspool = _mqttspool[interator_mqttspool].nextSibling(), interator_mqttspool != "") { 
 		dummy[interator_mqttspool] = interator_mqttspool;		
 		dummy[interator_mqttspool]["topic"] = (string)_mqttspool[interator_mqttspool]["topic"];
-		//dummy[interator_mqttspool]["clientid"] = (string)_mqttspool[interator_mqttspool]["clientid"];
 		dummy[interator_mqttspool]["payload"] = (string)_mqttspool[interator_mqttspool]["payload"];
 	}
 

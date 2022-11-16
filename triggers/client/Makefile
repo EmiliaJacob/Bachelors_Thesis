@@ -13,4 +13,3 @@ clean:
 
 clean-all:
 	rm -f $(executables)
-
