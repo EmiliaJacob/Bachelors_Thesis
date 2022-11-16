@@ -353,8 +353,6 @@ int get_and_send_spooled_messages()
 	if(!_mqttspool.hasChilds())
 		return MOSQ_ERR_SUCCESS;
 
-	cout << "READING MESSAGES" << endl;
-
 	int lock_inc_result =_mqttspool.lock_inc(0);
 
 	if(lock_inc_result != YDB_OK)  // Lock konnte nicht gesetzt werden
@@ -365,7 +363,7 @@ int get_and_send_spooled_messages()
 	while(interator_mqttspool = _mqttspool[interator_mqttspool].nextSibling(), interator_mqttspool != "") { 
 		dummy[interator_mqttspool] = interator_mqttspool;		
 		dummy[interator_mqttspool]["topic"] = (string)_mqttspool[interator_mqttspool]["topic"];
-		dummy[interator_mqttspool]["clientid"] = (string)_mqttspool[interator_mqttspool]["clientid"];
+		//dummy[interator_mqttspool]["clientid"] = (string)_mqttspool[interator_mqttspool]["clientid"];
 		dummy[interator_mqttspool]["payload"] = (string)_mqttspool[interator_mqttspool]["payload"];
 	}
 
