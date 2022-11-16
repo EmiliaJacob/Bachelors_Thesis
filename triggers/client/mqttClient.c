@@ -7,7 +7,9 @@
 #define BROKER_HOSTNAME "localhost"
 
 void publishMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) {
-
+  if(count != 2)
+    return 
+  
   static int initResult = -1;
   static int connResult = -1; 
 
