@@ -397,7 +397,7 @@ int receive_and_publish_mq_messages()
 	char buffer[mqttspool_attributes.mq_msgsize + 1];
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
-		if(mq_receive(mq_descriptor, buffer, mqttspool_attributes.mq_msgsize, NULL) == -1) { 
+		if(mq_receive(mq_descriptor, buffer, mqttspool_attributes.mq_msgsize + 1, NULL) == -1) { 
 			return MOSQ_ERR_SUCCESS;
 		}
 
