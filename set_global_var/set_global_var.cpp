@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 
   std::string article_id = std::string(argv[1]);
   int number_of_set_calls = stoi(argv[2]);
-  int ms_between_each_call = stoi(argv[3]);
+  int ns_between_each_call = stoi(argv[3]);
 
   using namespace std::chrono; 
 
@@ -30,7 +30,7 @@ int main(int argc, char** argv)
   duration<int64_t, std::nano> stop_duration;
 
   for (int i=0; i<number_of_set_calls; i++) { 
-    std::this_thread::sleep_for(std::chrono::nanoseconds(ms_between_each_call));
+    std::this_thread::sleep_for(std::chrono::nanoseconds(ns_between_each_call));
     start_point = steady_clock::now();
     start_duration = duration_cast<duration<int64_t,std::nano>>(start_point.time_since_epoch());
     
