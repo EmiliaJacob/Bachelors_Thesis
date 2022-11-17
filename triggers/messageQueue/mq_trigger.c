@@ -16,7 +16,7 @@
 #define MQ_MSG_PRIO 1
 
 struct mq_attr mqttspool_attributes = {
-    .mq_maxmsg = 10,
+    .mq_maxmsg = 100,
     .mq_msgsize = 8192
 };
 

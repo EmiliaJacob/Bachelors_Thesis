@@ -389,14 +389,20 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
+int mq_counter = 0;
+
 int receive_and_publish_mq_messages() 
 {
 	char buffer[mqttspool_attributes.mq_msgsize + 1];
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
 		if(mq_receive(mq_descriptor, buffer, mqttspool_attributes.mq_msgsize + 1, NULL) == -1) { 
+			cout << mq_counter << endl;
+			mq_counter = 0;
 			return MOSQ_ERR_SUCCESS;
 		}
+
+		mq_counter += 1;
 
 		char* topic = strtok(buffer, " ");
 		char* payload = strtok(NULL, " ");
@@ -410,6 +416,9 @@ int receive_and_publish_mq_messages()
 			publish_mqtt_message(topic, payload);
 		}
 	}
+
+	cout << mq_counter << endl;
+	mq_counter = 0;
 
 	return MOSQ_ERR_SUCCESS;
 }
