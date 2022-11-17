@@ -1,7 +1,7 @@
 #!/bin/bash
 
-for i in {1..1000}
+for (( i=0; i<$1; i++))
 do
-  sleep $1
-  ./set_global_var 123 1 0
+  sleep $2
+  ./set_global_var $3 1 0
 done
