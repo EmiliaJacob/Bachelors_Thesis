@@ -35,9 +35,11 @@ c_ydb_global dummy("dummy");
 
 mqd_t mq_descriptor = -1;
 
-struct mq_attr mqttspool_attributes = {
-    .mq_maxmsg = 10,
-    .mq_msgsize = 8192
+struct mq_attr mq_attributes = {
+    .mq_flags = 0,
+    .mq_maxmsg = 50,
+    .mq_msgsize = 8192,
+    .mq_curmsgs = 0
 };
 
 int counter = 0;
@@ -116,7 +118,7 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 	}
 
 	if(sync_mode == "mq") {
-		mq_descriptor = mq_open("/mqsync", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, &mqttspool_attributes); 
+		mq_descriptor = mq_open("/mqsync", O_RDONLY | O_CREAT | O_NONBLOCK, S_IRWXU, &mq_attributes); 
 
 		if(mq_descriptor == -1)
 			return MOSQ_ERR_UNKNOWN;
@@ -393,10 +395,10 @@ int mq_counter = 0;
 
 int receive_and_publish_mq_messages() 
 {
-	char buffer[mqttspool_attributes.mq_msgsize + 1];
+	char buffer[mq_attributes.mq_msgsize + 1];
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
-		if(mq_receive(mq_descriptor, buffer, mqttspool_attributes.mq_msgsize + 1, NULL) == -1) { 
+		if(mq_receive(mq_descriptor, buffer, mq_attributes.mq_msgsize + 1, NULL) == -1) { 
 			cout << mq_counter << endl;
 			mq_counter = 0;
 			return MOSQ_ERR_SUCCESS;

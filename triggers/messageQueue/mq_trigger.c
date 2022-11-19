@@ -15,9 +15,11 @@
 #define DELIMITER " "
 #define MQ_MSG_PRIO 1
 
-struct mq_attr mqttspool_attributes = {
-    .mq_maxmsg = 100,
-    .mq_msgsize = 8192
+struct mq_attr mq_attributes = {
+    .mq_flags = 0,
+    .mq_maxmsg = 50,
+    .mq_msgsize = 8192,
+    .mq_curmsgs = 0
 };
 
 void sig_handler(int signo)
@@ -34,7 +36,7 @@ void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload)
     static int mq_descriptor = -1;
     
     if(mq_descriptor == -1) {
-        mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, &mqttspool_attributes); 
+        mq_descriptor = mq_open(MQ_NAME, O_WRONLY | O_CREAT , S_IRWXU, &mq_attributes); 
 
         if(mq_descriptor == -1) {
             perror("mq_open failed");
