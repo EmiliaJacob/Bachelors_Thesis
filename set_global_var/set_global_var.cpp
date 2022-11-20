@@ -36,7 +36,7 @@ int main(int argc, char** argv)
     
     _articles[article_id]["title"] = std::to_string(start_duration.count());
     
-    std::this_thread::sleep_for(std::chrono::nanoseconds(7000000));
+    //std::this_thread::sleep_for(std::chrono::nanoseconds(7000000));
   //  stop_point = steady_clock::now();
  //   stop_duration = duration_cast<duration<int64_t,std::nano>>(stop_point.time_since_epoch());
 //    cout << stop_duration.count() - start_duration.count() << endl;
