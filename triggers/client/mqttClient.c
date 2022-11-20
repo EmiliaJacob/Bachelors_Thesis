@@ -35,7 +35,7 @@ void publishMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) {
     topic,
     strlen(payload),
     payload,
-    0,
+    2,
     true
   );
 
