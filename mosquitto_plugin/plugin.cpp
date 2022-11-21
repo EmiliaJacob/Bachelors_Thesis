@@ -429,22 +429,21 @@ int receive_and_publish_mq_messages()
 		char* payload = strtok(NULL, " ");
 
 		if(time_measurement_trigger_to_publish) {
-			// if(data_counter == 0){
-			// 	start_all_data = steady_clock::now();
-			// 	cout << "hello" << endl;
-			// }
+			if(data_counter == 0){
+			 	start_all_data = steady_clock::now();
+			 }
 
-			//data_counter += 1;
+			data_counter += 1;
 
 			int64_t start_duration_count = strtoll(payload, NULL, 10);
 			
 			time_log_mq_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
-			// if(data_counter == 1000){
-			// 	cout << "hello" << endl;
-			// 	stop_all_data = steady_clock::now();
-			// 	all_data_duration = stop_all_data - start_all_data;
-			// 	cout << all_data_duration.count() << endl;
-			// }
+
+			if(data_counter == 1000){
+				stop_all_data = steady_clock::now();
+				all_data_duration = stop_all_data - start_all_data;
+				cout << all_data_duration.count() << endl;
+			}
 		}
 		else {
 			publish_mqtt_message(topic, payload);
