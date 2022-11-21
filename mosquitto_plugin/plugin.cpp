@@ -42,7 +42,7 @@ mqd_t mq_descriptor = -1;
 
 struct mq_attr mq_attributes = {
     .mq_flags = 0,
-    .mq_maxmsg = 10,
+    .mq_maxmsg = 50,
     .mq_msgsize = 8192,
     .mq_curmsgs = 0
 };
@@ -394,11 +394,26 @@ int get_and_send_spooled_messages()
 
 	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") { 
 		if(time_measurement_trigger_to_publish) { 
+			if(data_counter == 0){
+				start_all_data = steady_clock::now();
+				cout << "hello" << endl;
+			}
+
+			data_counter += 1;
+
 			string payload = (string)dummy[iterator_dummy]["payload"];
 
 			int64_t start_duration_count = stoll(payload, NULL, 10);
 
 			time_log_global_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
+
+			if(data_counter == 1000){
+				cout << "hello" << endl;
+				stop_all_data = steady_clock::now();
+				all_data_duration = stop_all_data - start_all_data;
+				cout << all_data_duration.count() << endl;
+				data_counter = 0;
+			}
 		}
 		else {
 			publish_mqtt_message((string)dummy[iterator_dummy]["topic"], (string)dummy[iterator_dummy]["payload"]); 
