@@ -98,7 +98,6 @@ class mqtt_fetch {
 			}
 		}
 		else if (that.mqtt_topicMap.has(msg.destinationName)) { // fuer nicht-fetch nachrichten die empfangen wurden
-			console.log("DELLO");
 			var r = that.mqtt_topicMap.get(msg.destinationName);
 			r[0](msg.destinationName, (r[2] == true) ? JSON.parse(msg.payloadString) : msg);
 		}
