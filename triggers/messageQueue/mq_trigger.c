@@ -17,7 +17,7 @@
 
 struct mq_attr mq_attributes = {
     .mq_flags = 0,
-    .mq_maxmsg = 10,
+    .mq_maxmsg = 50,
     .mq_msgsize = 8192,
     .mq_curmsgs = 0
 };
