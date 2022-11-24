@@ -19,10 +19,9 @@
 using namespace::std;
 using namespace::std::chrono;
 
-steady_clock::time_point start_all_data;
-steady_clock::time_point stop_all_data;
-duration<int64_t, nano> all_data_duration;
-int data_counter = 0;
+steady_clock::time_point timepoint_first_synchronisation;
+int synchronisation_counter_maximum = 1000;
+int synchronisation_counter = 0;
 
 string sync_mode = "client";
 
@@ -53,7 +52,6 @@ int max_mq_receive_per_tick = 300;
 Json::CharReaderBuilder char_reader_builder;
 Json::StreamWriterBuilder stream_writer_builder;
 Json::CharReader *char_reader;
-
 c_ydb_global _articles("^articles");
 
 
@@ -72,6 +70,8 @@ bool publish_mqtt_message(string topic, Json::Value &payload);
 bool publish_mqtt_message(string topic, string payload);
 
 int64_t get_time_difference_in_nano(int64_t start_duration_rep);
+
+void print_time_difference_first_to_last_synchronisation();
 
 const int QOS = 0;
 const bool RETAIN = false;
@@ -200,23 +200,20 @@ static int callback_message(int event, void *event_data, void *userdata)
 		if(sync_mode == "client") {
 
 			if(time_measurement_trigger_to_publish) {
-				if(data_counter == 0){
-					start_all_data = steady_clock::now();
-					cout << "hello" << endl;
+				if(synchronisation_counter == 0){
+					timepoint_first_synchronisation = steady_clock::now();
 				}
 
-				data_counter += 1;
+				synchronisation_counter += 1;
 
 				char *payload = (char*)ed->payload; 
 				int64_t start_duration_count = strtoll(payload, NULL, 10);
 
 				time_log_client_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 
-				if(data_counter == 1000){
-					cout << "hello" << endl;
-					stop_all_data = steady_clock::now();
-					all_data_duration = stop_all_data - start_all_data;
-					cout << all_data_duration.count() << endl;
+				if(synchronisation_counter == synchronisation_counter_maximum){
+					print_time_difference_first_to_last_synchronisation();
+					synchronisation_counter = 0;
 				}
 			}
 			else {
@@ -394,12 +391,11 @@ int get_and_send_spooled_messages()
 
 	while(iterator_dummy = dummy[iterator_dummy].nextSibling(), iterator_dummy != "") { 
 		if(time_measurement_trigger_to_publish) { 
-			if(data_counter == 0){
-				start_all_data = steady_clock::now();
-				cout << "hello" << endl;
+			if(synchronisation_counter == 0){
+				timepoint_first_synchronisation = steady_clock::now();
 			}
 
-			data_counter += 1;
+			synchronisation_counter += 1;
 
 			string payload = (string)dummy[iterator_dummy]["payload"];
 
@@ -407,12 +403,9 @@ int get_and_send_spooled_messages()
 
 			time_log_global_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 
-			if(data_counter == 1000){
-				cout << "hello" << endl;
-				stop_all_data = steady_clock::now();
-				all_data_duration = stop_all_data - start_all_data;
-				cout << all_data_duration.count() << endl;
-				data_counter = 0;
+			if(synchronisation_counter == synchronisation_counter_maximum){
+				print_time_difference_first_to_last_synchronisation();
+				synchronisation_counter = 0;
 			}
 		}
 		else {
@@ -444,20 +437,19 @@ int receive_and_publish_mq_messages()
 		char* payload = strtok(NULL, " ");
 
 		if(time_measurement_trigger_to_publish) {
-			if(data_counter == 0){
-			 	start_all_data = steady_clock::now();
-			 }
+			if(synchronisation_counter == 0){
+				timepoint_first_synchronisation = steady_clock::now();
+			}
 
-			data_counter += 1;
+			synchronisation_counter += 1;
 
 			int64_t start_duration_count = strtoll(payload, NULL, 10);
 			
 			time_log_mq_trigger_to_publish << get_time_difference_in_nano(start_duration_count) << endl;
 
-			if(data_counter == 1000){
-				stop_all_data = steady_clock::now();
-				all_data_duration = stop_all_data - start_all_data;
-				cout << all_data_duration.count() << endl;
+			if(synchronisation_counter == synchronisation_counter_maximum) {
+				print_time_difference_first_to_last_synchronisation();		
+				synchronisation_counter = 0;
 			}
 		}
 		else {
@@ -510,4 +502,11 @@ int64_t get_time_difference_in_nano(int64_t start_duration_count)
 	duration<int64_t, nano> stop_duration = duration_cast<duration<int64_t, nano>>(stop_point.time_since_epoch()); 
 
 	return stop_duration.count() - start_duration_count;
+}
+
+void print_time_difference_first_to_last_synchronisation()
+{
+	steady_clock::time_point timepoint_last_synchronisation = steady_clock::now(); 
+	duration<int64_t, nano> time_difference_first_to_last_synchronisation = timepoint_last_synchronisation - timepoint_first_synchronisation;
+	cout << time_difference_first_to_last_synchronisation.count() << endl;
 }
