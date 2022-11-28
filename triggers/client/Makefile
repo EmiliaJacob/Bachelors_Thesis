@@ -7,9 +7,3 @@ mqttClient:
 	gcc -c -Wall -Werror -fpic mqttClient.c $(copts) 
 	gcc -o libmqttclient.so -shared mqttClient.o $(lopts) \
 	/home/emi/mosquitto/lib/libmosquitto.so.1 -lyottadb
-
-clean:
-	rm -f *.o
-
-clean-all:
-	rm -f $(executables)
