@@ -196,7 +196,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 {
 	struct mosquitto_evt_message *ed = (mosquitto_evt_message*)event_data; 
 
-	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { // Hier wird sync Nachricht von Client Implementation ausgelesen
+	if(!regex_match(ed->topic, regex("(mqttfetch/aabay/)([^/]+)(/fr/)([0-9]+)"))) { 
 		if(sync_mode == "client") {
 
 			if(time_measurement_trigger_to_publish) {
@@ -215,9 +215,6 @@ static int callback_message(int event, void *event_data, void *userdata)
 					print_time_difference_first_to_last_synchronisation();
 					synchronisation_counter = 0;
 				}
-			}
-			else {
-				publish_mqtt_message(ed->topic, (char*)ed->payload);
 			}
 		}
 
