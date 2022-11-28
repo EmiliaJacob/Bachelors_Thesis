@@ -1,8 +1,5 @@
 mosquitto = /home/emi/mosquitto
 ydb=$(shell pkg-config --variable=prefix yottadb)
-#
-# Prefixpfad anpassen wenn nÃ¶tig.
-#
 prefix=$(shell pwd)
 
 cfg=mosquitto_yottadb.conf
