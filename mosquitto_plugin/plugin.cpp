@@ -473,4 +473,3 @@ void print_time_difference_first_to_last_synchronisation()
 	duration<int64_t, nano> time_difference_first_to_last_synchronisation = timepoint_last_synchronisation - timepoint_first_synchronisation;
 	cout << "Time difference first to last synchronisation: " << time_difference_first_to_last_synchronisation.count() << endl;
 }
-//TEST
