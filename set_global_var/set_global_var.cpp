@@ -26,9 +26,6 @@ int main(int argc, char** argv)
   steady_clock::time_point start_point;
   duration<int64_t, std::nano> start_duration;
 
-//  steady_clock::time_point stop_point;
-//  duration<int64_t, std::nano> stop_duration;
-
   for (int i=0; i<number_of_set_calls; i++) { 
     std::this_thread::sleep_for(std::chrono::nanoseconds(ns_between_each_call));
     start_point = steady_clock::now();
@@ -37,9 +34,6 @@ int main(int argc, char** argv)
     _articles[article_id]["title"] = std::to_string(start_duration.count());
     
     //std::this_thread::sleep_for(std::chrono::nanoseconds(7000000));
-  //  stop_point = steady_clock::now();
- //   stop_duration = duration_cast<duration<int64_t,std::nano>>(stop_point.time_since_epoch());
-//    cout << stop_duration.count() - start_duration.count() << endl;
   }
 
   return 0;

@@ -23,7 +23,7 @@ async function make_list() {
 		node.appendChild(document.createTextNode(" \u20ac"));
 		node.addEventListener("click", show); 
 		document.getElementById("list").appendChild(node);
-		m.set_callback("aabay/bids/" +  articles.articles[i].id, rx_bid, true);  // TODO: warum hier true?
+		m.set_callback("aabay/bids/" +  articles.articles[i].id, rx_bid, true);  
 		m.set_callback("aabay/title/" +  articles.articles[i].id, rx_title, false);
 	}
 }

@@ -36,7 +36,7 @@ void publishMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) {
     strlen(payload),
     payload,
     2,
-    true
+    false
   );
 
   if(pub_result != MOSQ_ERR_SUCCESS) {
