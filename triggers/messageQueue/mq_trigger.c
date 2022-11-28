@@ -17,19 +17,13 @@
 
 struct mq_attr mq_attributes = {
     .mq_flags = 0,
-    .mq_maxmsg = 50,
+    .mq_maxmsg = 10,
     .mq_msgsize = 8192,
     .mq_curmsgs = 0
 };
 
-void sig_handler(int signo)
-{
-    printf("%d SIGNAL \n", signo);
-}
-
 void addMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) 
 {
-    //signal(SIGALRM, sig_handler);
     if(count != 2)
        return; 
 
