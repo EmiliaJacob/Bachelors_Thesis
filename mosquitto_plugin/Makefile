@@ -10,17 +10,6 @@ plugin.so: plugin.cpp
 jsoncpp.o: ./jsoncpp/jsoncpp.cpp
 	g++ -fPIC -c ./jsoncpp/jsoncpp.cpp -I ./jsoncpp/include
 
-mosquitto_yottadb.conf:
-			echo "Create $@ file."
-			sed \
-			 -e 's:@PREFIX@:$(prefix):g' \
-			 -e 's:@YDB_DIR@:${ydb_dir}:g' \
-			 -e 's:@YDB_GBLDIR@:${ydb_gbldir}:g' \
-			 -e 's:@YDB_ROUTINES@:${ydb_routines}:g' \
-			 -e 's:@YDB_REL@:${ydb_rel}:g' \
-			 $@.tmpl > $@
-
 .PHONY: clean
 clean:
 			rm -f plugin.so
-			rm -f mosquitto_yottadb.conf
