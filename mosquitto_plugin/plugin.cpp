@@ -26,27 +26,23 @@ int synchronisation_counter = 0;
 string sync_mode = "client";
 
 bool time_measurement_trigger_to_publish = false;
-bool time_measurement_read_out_function = false;
 
 ofstream time_log_mq_trigger_to_publish;
-ofstream time_log_mq_receive_mq_messages;
 ofstream time_log_global_trigger_to_publish;
-ofstream time_log_global_get_and_send_spooled_messages;
 ofstream time_log_client_trigger_to_publish;
 
-c_ydb_global _mqttspool("^ms"); 
+c_ydb_global _globalSyncBuffer("^globalSyncBuffer"); 
 c_ydb_global dummy("dummy");
 
 mqd_t mq_descriptor = -1;
 
 struct mq_attr mq_attributes = {
     .mq_flags = 0,
-    .mq_maxmsg = 50,
+    .mq_maxmsg = 10,
     .mq_msgsize = 8192,
     .mq_curmsgs = 0
 };
 
-int counter = 0;
 int max_mq_receive_per_tick = 300;
 
 Json::CharReaderBuilder char_reader_builder;
@@ -59,11 +55,9 @@ static int callback_message(int event, void *event_data, void *userdata);
 
 static int callback_tick(int event, void *event_data, void *userdata);
 
-int get_and_send_spooled_messages();
+int get_and_publish_global_data();
 
 int receive_and_publish_mq_messages();
-
-bool literal_to_json(Json::Value *json, char *literal);
 
 bool publish_mqtt_message(string topic, Json::Value &payload); 
 
@@ -73,7 +67,7 @@ int64_t get_time_difference_in_nano(int64_t start_duration_rep);
 
 void print_time_difference_first_to_last_synchronisation();
 
-const int QOS = 0;
+const int QOS = 2;
 const bool RETAIN = false;
 mosquitto_property *PROPERTIES = NULL;
 
@@ -114,12 +108,6 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 				time_measurement_trigger_to_publish = true;
 			}
 		}
-		else if(!strcmp(opts[i].key, "time_measurement_read_out_function")) {
-			if(!strcmp(opts[i].value, "true")) {
-				time_measurement_read_out_function = true;
-			}
-
-		}
 	}
 
 	if(sync_mode == "mq") {
@@ -138,17 +126,6 @@ int mosquitto_plugin_init(mosquitto_plugin_id_t *identifier, void **user_data, s
 		}
 		if(sync_mode == "client"){
 			time_log_client_trigger_to_publish.open("/home/emi/ydbay/time_measurements/client/trigger_to_publish");
-		}
-	}
-
-	if(time_measurement_read_out_function) {
-		if(sync_mode == "mq") {
-			time_log_mq_receive_mq_messages.open("/home/emi/ydbay/time_measurements/mq/receive_and_publish_mq_messages");
-		}
-		if(sync_mode == "global"){
-			time_log_global_get_and_send_spooled_messages.open("/home/emi/ydbay/time_measurements/global/get_and_send_spooled_messages");
-		}
-		if(sync_mode == "client"){
 		}
 	}
 
@@ -173,17 +150,6 @@ int mosquitto_plugin_cleanup(void *user_data, struct mosquitto_opt *opts, int op
 		}
 		if(sync_mode == "client"){
 			time_log_client_trigger_to_publish.close();
-		}
-	}
-
-	if(time_measurement_read_out_function) {
-		if(sync_mode == "mq"){
-			time_log_mq_receive_mq_messages.close();
-		}
-		if(sync_mode == "global"){
-			time_log_global_get_and_send_spooled_messages.close();
-		}
-		if(sync_mode == "client"){
 		}
 	}
 
@@ -270,7 +236,7 @@ static int callback_message(int event, void *event_data, void *userdata)
 		return MOSQ_ERR_SUCCESS;
 	}
 
-	if(request_payload["action"] == "bid") { // TODO: add check for non-selected article
+	if(request_payload["action"] == "bid") { 
 		string article_id = request_payload["id"].asString();
 		string nickname = request_payload["nickname"].asString(); 
 
@@ -353,7 +319,7 @@ static int callback_tick(int event, void *event_data, void *userdata)
 	}
 
 	else if(sync_mode == "global") {
-			get_and_send_spooled_messages();
+			get_and_publish_global_data();
 			return MOSQ_ERR_SUCCESS;
 	}
 
@@ -363,26 +329,26 @@ static int callback_tick(int event, void *event_data, void *userdata)
 }
 
 // Auslese - Funktionen
-int get_and_send_spooled_messages()
+int get_and_publish_global_data()
 {
-	if(!_mqttspool.hasChilds())
+	if(!_globalSyncBuffer.hasChilds())
 		return MOSQ_ERR_SUCCESS;
 
-	int lock_inc_result =_mqttspool.lock_inc(0);
+	int lock_inc_result =_globalSyncBuffer.lock_inc(0);
 
 	if(lock_inc_result != YDB_OK)  // Lock konnte nicht gesetzt werden
 		return MOSQ_ERR_SUCCESS;
 
 	string interator_mqttspool = "";
 
-	while(interator_mqttspool = _mqttspool[interator_mqttspool].nextSibling(), interator_mqttspool != "") { 
+	while(interator_mqttspool = _globalSyncBuffer[interator_mqttspool].nextSibling(), interator_mqttspool != "") { 
 		dummy[interator_mqttspool] = interator_mqttspool;		
-		dummy[interator_mqttspool]["topic"] = (string)_mqttspool[interator_mqttspool]["topic"];
-		dummy[interator_mqttspool]["payload"] = (string)_mqttspool[interator_mqttspool]["payload"];
+		dummy[interator_mqttspool]["topic"] = (string)_globalSyncBuffer[interator_mqttspool]["topic"];
+		dummy[interator_mqttspool]["payload"] = (string)_globalSyncBuffer[interator_mqttspool]["payload"];
 	}
 
-	_mqttspool.kill();
-	_mqttspool.lock_dec();
+	_globalSyncBuffer.kill();
+	_globalSyncBuffer.lock_dec();
 
 	string iterator_dummy = "";
 
@@ -415,7 +381,7 @@ int get_and_send_spooled_messages()
 	return MOSQ_ERR_SUCCESS;
 }
 
-int mq_counter = 0;
+int mq_messages_per_tick = 0;
 
 int receive_and_publish_mq_messages() 
 {
@@ -423,12 +389,12 @@ int receive_and_publish_mq_messages()
 
 	for (int i = 0; i < max_mq_receive_per_tick; i++) {
 		if(mq_receive(mq_descriptor, buffer, mq_attributes.mq_msgsize + 1, NULL) == -1) { 
-			cout << mq_counter << endl;
-			mq_counter = 0;
+			cout << mq_messages_per_tick << endl;
+			mq_messages_per_tick = 0;
 			return MOSQ_ERR_SUCCESS;
 		}
 
-		mq_counter += 1;
+		mq_messages_per_tick += 1;
 
 		char* topic = strtok(buffer, " ");
 		char* payload = strtok(NULL, " ");
@@ -454,8 +420,8 @@ int receive_and_publish_mq_messages()
 		}
 	}
 
-	cout << mq_counter << endl;
-	mq_counter = 0;
+	cout << mq_messages_per_tick << endl;
+	mq_messages_per_tick = 0;
 
 	return MOSQ_ERR_SUCCESS;
 }
