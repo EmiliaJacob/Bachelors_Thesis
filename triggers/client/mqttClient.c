@@ -24,7 +24,7 @@ void publishMqttMessage(int count, ydb_char_t *topic, ydb_char_t *payload) {
     if(mosquitto_loop_start(client) != MOSQ_ERR_SUCCESS) {
       return;
     }
-    if((conn_result = mosquitto_connect(client, BROKER_HOSTNAME, BROKER_PORT, 10)) != MOSQ_ERR_SUCCESS) {
+    if((conn_result = mosquitto_connect_async(client, BROKER_HOSTNAME, BROKER_PORT, 10)) != MOSQ_ERR_SUCCESS) {
       return;
     }
   }
