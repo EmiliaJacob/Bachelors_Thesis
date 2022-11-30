@@ -339,12 +339,12 @@ int get_global_sync_buffer_data()
 	if(lock_inc_result != YDB_OK)  // Lock konnte nicht gesetzt werden
 		return MOSQ_ERR_SUCCESS;
 
-	string interator_mqttspool = "";
+	string iterator_globalSyncBuffer = "";
 
-	while(interator_mqttspool = _globalSyncBuffer[interator_mqttspool].nextSibling(), interator_mqttspool != "") { 
-		dummy[interator_mqttspool] = interator_mqttspool;		
-		dummy[interator_mqttspool]["topic"] = (string)_globalSyncBuffer[interator_mqttspool]["topic"];
-		dummy[interator_mqttspool]["payload"] = (string)_globalSyncBuffer[interator_mqttspool]["payload"];
+	while(iterator_globalSyncBuffer = _globalSyncBuffer[iterator_globalSyncBuffer].nextSibling(), iterator_globalSyncBuffer != "") { 
+		dummy[iterator_globalSyncBuffer] = iterator_globalSyncBuffer;		
+		dummy[iterator_globalSyncBuffer]["topic"] = (string)_globalSyncBuffer[iterator_globalSyncBuffer]["topic"];
+		dummy[iterator_globalSyncBuffer]["payload"] = (string)_globalSyncBuffer[iterator_globalSyncBuffer]["payload"];
 	}
 
 	_globalSyncBuffer.kill();
