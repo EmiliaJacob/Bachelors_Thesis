@@ -21,7 +21,4 @@ Hierfür wurde ebenfalls eine externe C Routine verwendet.
 Durch diesen Client werden die neuen Daten direkt als MQTT Nachrichten gepublisht.
 
 Zum Vergleich der Implementationsarten wurde die Dauer der Synchronisation gemessen.
-Hierbei wurden die Trigger 1000 hintereinander ausgelöst.
-Einmal im selben Prozess und einmal in separaten Prozessen.
-Die Testdurchläufe geschahen zudem mit unterschiedlichen Wartezeiten zwischen den Auslösungen.
-Es wurden die Dauer der einzelnen Synchronisationen und die Dauer für alle 1000 Auslösungen insgesamt gemessen.
+Es befindet sich im Projekt eine Implementation zur Zeitmessung in Nanosekunden.
